@@ -1,0 +1,35 @@
+# Ambientes virtuais
+venv/
+.venv/
+env/
+ENV/
+
+# Arquivos de configuração locais
+claude.md
+CLAUDE.md
+arquivos.ini
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cache e relatórios de testes
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Cache de ferramentas de análise
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
