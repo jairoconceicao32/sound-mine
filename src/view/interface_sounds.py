@@ -45,6 +45,17 @@ class InterfaceSounds:
             self._buffer = sound
             self._position = 0
 
+    def duration_ms(self, name: str) -> int:
+        sound = self._sounds.get(name)
+        if sound is None or self._stream is None:
+            return 0
+        return round(len(sound) / self._stream.samplerate * 1000)
+
+    def stop(self) -> None:
+        with self._lock:
+            self._buffer = None
+            self._position = 0
+
     def play_and_wait(self, name: str) -> None:
         if name not in self._sounds:
             return

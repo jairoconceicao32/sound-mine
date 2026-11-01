@@ -1,7 +1,5 @@
 import logging
-
 import wx
-
 from src.view.announcer import Announcer
 from src.view.interface_sounds import InterfaceSounds
 from src.view.keys import Command, translate
@@ -12,26 +10,23 @@ logger = logging.getLogger(__name__)
 
 class ScreenManager:
     def __init__(self, frame: wx.Frame, announcer: Announcer, speaker: Speaker,
-                 sounds: InterfaceSounds) -> None:
+                 sounds: InterfaceSounds, version: str) -> None:
         self._frame = frame
         self.announcer = announcer
         self.speaker = speaker
         self.sounds = sounds
+        self.version = version
         self._stack: list[Screen] = []
-
         self._key_panel = NoFocusPanel(frame, style=wx.WANTS_CHARS)
         self._container = NoFocusPanel(self._key_panel)
         self._sizer = wx.BoxSizer(wx.VERTICAL)
         self._container.SetSizer(self._sizer)
-
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         panel_sizer.Add(self._container, 1, wx.EXPAND)
         self._key_panel.SetSizer(panel_sizer)
-
         outer = wx.BoxSizer(wx.VERTICAL)
         outer.Add(self._key_panel, 1, wx.EXPAND)
         frame.SetSizer(outer)
-
         frame.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
         frame.Bind(wx.EVT_ACTIVATE, self._on_activate_window)
         frame.Bind(wx.EVT_CLOSE, self._on_close)
@@ -54,6 +49,14 @@ class ScreenManager:
         self._stack.append(screen)
         self._sizer.Add(screen, 1, wx.EXPAND)
         self._show(screen)
+
+    def replace(self, screen: Screen) -> None:
+        if self._stack:
+            old = self._stack.pop()
+            old.on_deactivate()
+            self._sizer.Detach(old)
+            old.Destroy()
+        self.push(screen)
 
     def pop(self) -> None:
         if len(self._stack) <= 1:

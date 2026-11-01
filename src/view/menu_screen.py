@@ -42,16 +42,12 @@ class MenuScreen(Screen):
     def handle_command(self, command: KeyCommand) -> bool:
         match command.command:
             case Command.UP:
-                self._stop_message()
                 if self._navigator.move_up():
-                    self.manager.sounds.play("navigation")
-                self._show_current()
+                    self._on_moved()
                 return True
             case Command.DOWN:
-                self._stop_message()
                 if self._navigator.move_down():
-                    self.manager.sounds.play("navigation")
-                self._show_current()
+                    self._on_moved()
                 return True
             case Command.ACTIVATE:
                 self._stop_message()
@@ -98,6 +94,11 @@ class MenuScreen(Screen):
         item = self._navigator.current()
         text = self._navigator.menu.item_text(item) if item is not None else ""
         self._view.show_item(text, self._navigator.index, len(self._navigator.items))
+
+    def _on_moved(self) -> None:
+        self._stop_message()
+        self.manager.sounds.play("navigation")
+        self._show_current()
 
     def _show_current(self, interrupt: bool = True) -> None:
         self._update_item_label()

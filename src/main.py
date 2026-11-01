@@ -2,33 +2,36 @@ import logging
 
 import wx
 
-from src import SOUND_MINE_VER
 from src.controllers.main_menu import build_main_menu
 from src.models.screen_manager import ScreenManager
 from src.view.announcer import Announcer
 from src.view.interface_sounds import InterfaceSounds
 from src.view.menu_screen import MenuScreen
 from src.view.speaker import Speaker
+from src.view.startup_screen import StartupScreen
 
 
-def main():
+def main(version: str):
     logging.basicConfig(level=logging.WARNING)
 
     app = wx.App(False)
-    frame = wx.Frame(None, title=SOUND_MINE_VER, size=(500, 400))
+    frame = wx.Frame(None, title=version, size=(500, 400))
     speaker = Speaker()
     sounds = InterfaceSounds()
-    announcer = Announcer(frame, speaker)
-    manager = ScreenManager(frame, announcer, speaker, sounds)
+    announcer = Announcer(frame, speaker, version)
+    manager = ScreenManager(frame, announcer, speaker, sounds, version)
 
     frame.Centre()
     frame.Show()
-    sounds.play("startup")
     if not speaker.available:
         announcer.error(
             "A fala pelo leitor de tela não está disponível. "
             "Instale as dependências com: python -m pip install -r requirements.txt"
         )
-    manager.push(MenuScreen(manager.parent, manager, build_main_menu(manager)))
+
+    def open_main_menu() -> None:
+        manager.replace(MenuScreen(manager.parent, manager, build_main_menu(manager)))
+
+    manager.push(StartupScreen(manager.parent, manager, open_main_menu))
 
     app.MainLoop()

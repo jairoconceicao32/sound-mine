@@ -12,7 +12,7 @@ Este documento registra as decisões técnicas relevantes do Sound Mine e os mot
   - `src/models`: gerenciamento das telas (`screen_manager.py`).
   - `src/view`: telas, exibição, teclado, fala e mensagens.
 - Testes em `tests/`, com `unittest` da biblioteca padrão.
-- A versão do programa fica na variável global `SOUND_MINE_VER`, em `src/__init__.py`. Valor atual: `Sound Mine 0.1.0 DEV`.
+- A versão do programa fica na variável global `SOUND_MINE_VER`, no ponto de entrada `sound_mine.py`, e é passada para `main(version)`. Nenhum arquivo de `src/` define a versão. Valor atual: `Sound Mine 0.1.0 DEV`.
 - O código não leva comentários nem docstrings.
 
 **Execução:** `python sound_mine.py`
@@ -37,7 +37,7 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 
 | Tecla | Comportamento |
 |---|---|
-| Setas para cima e para baixo | Navegam entre as opções. Não há navegação circular: nas pontas, o item atual é repetido. |
+| Setas para cima e para baixo | Navegam entre as opções, com o som de navegação. Não há navegação circular: nas pontas, nada acontece (sem fala e sem som). |
 | Enter | Executa a opção selecionada. |
 | Letra | Nos menus comuns, apenas seleciona a opção (`LetterMode.SELECT`). No editor, executa a opção diretamente (`LetterMode.ACTIVATE`). |
 | Esc | Volta à tela anterior. No menu principal, fecha o programa sem confirmação. |
