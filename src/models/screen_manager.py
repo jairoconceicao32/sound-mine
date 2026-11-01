@@ -1,27 +1,47 @@
 import logging
 import wx
+from src.models.settings import Settings
 from src.view.announcer import Announcer
 from src.view.interface_sounds import InterfaceSounds
 from src.view.keys import Command, translate
-from src.view.screen import NoFocusPanel, Screen
+from src.view.screen import FocusSink, NoFocusPanel, Screen
 from src.view.speaker import Speaker
 
 logger = logging.getLogger(__name__)
 
+_IGNORED_COMMANDS = {
+    Command.BLOCKED,
+    Command.NEXT_FIELD,
+    Command.PREV_FIELD,
+    Command.NEXT_TAB,
+    Command.PREV_TAB,
+    Command.PAGE_UP,
+    Command.PAGE_DOWN,
+    Command.HOME,
+    Command.END,
+    Command.ERASE,
+    Command.LEFT,
+    Command.RIGHT,
+    Command.SPACE,
+}
+
 class ScreenManager:
     def __init__(self, frame: wx.Frame, announcer: Announcer, speaker: Speaker,
-                 sounds: InterfaceSounds, version: str) -> None:
+                 sounds: InterfaceSounds, version: str, settings: Settings) -> None:
         self._frame = frame
         self.announcer = announcer
         self.speaker = speaker
         self.sounds = sounds
         self.version = version
+        self.settings = settings
         self._stack: list[Screen] = []
         self._key_panel = NoFocusPanel(frame, style=wx.WANTS_CHARS)
         self._container = NoFocusPanel(self._key_panel)
         self._sizer = wx.BoxSizer(wx.VERTICAL)
         self._container.SetSizer(self._sizer)
+        self._focus_sink = FocusSink(self._key_panel)
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        panel_sizer.Add(self._focus_sink, 0)
         panel_sizer.Add(self._container, 1, wx.EXPAND)
         self._key_panel.SetSizer(panel_sizer)
         outer = wx.BoxSizer(wx.VERTICAL)
@@ -41,6 +61,9 @@ class ScreenManager:
 
     def focus_window(self) -> None:
         wx.CallAfter(self._focus_now)
+
+    def focus_now(self) -> None:
+        self._focus_now()
 
     def push(self, screen: Screen) -> None:
         if self._stack:
@@ -92,8 +115,10 @@ class ScreenManager:
         screen.on_activate()
 
     def _focus_now(self) -> None:
-        if self._frame and not self._frame.IsBeingDeleted():
-            self._frame.SetFocus()
+        if not self._frame or self._frame.IsBeingDeleted():
+            return
+        target = self.current.focus_target() if self.current is not None else None
+        (target or self._focus_sink).SetFocus()
 
     def _on_close(self, event: wx.CloseEvent) -> None:
         try:
@@ -119,6 +144,9 @@ class ScreenManager:
             return
 
         screen = self.current
+        if screen is not None and screen.passes_key(command):
+            event.Skip()
+            return
         if screen is not None and screen.handle_command(command):
             return
 
@@ -126,7 +154,7 @@ class ScreenManager:
             self.pop()
         elif command.command is Command.HELP:
             self.show_help()
-        elif command.command is Command.BLOCKED:
+        elif command.command in _IGNORED_COMMANDS:
             pass
         else:
             event.Skip()

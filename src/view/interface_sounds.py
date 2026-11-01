@@ -23,6 +23,7 @@ class InterfaceSounds:
         self._buffer: np.ndarray | None = None
         self._position = 0
         self._stream = None
+        self.enabled = True
         try:
             import sounddevice
             import soundfile
@@ -39,7 +40,7 @@ class InterfaceSounds:
 
     def play(self, name: str) -> None:
         sound = self._sounds.get(name)
-        if sound is None:
+        if sound is None or not self.enabled:
             return
         with self._lock:
             self._buffer = sound
@@ -57,7 +58,7 @@ class InterfaceSounds:
             self._position = 0
 
     def play_and_wait(self, name: str) -> None:
-        if name not in self._sounds:
+        if name not in self._sounds or not self.enabled:
             return
         self.play(name)
         deadline = time.monotonic() + MAX_WAIT_SECONDS

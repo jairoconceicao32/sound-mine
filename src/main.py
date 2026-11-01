@@ -4,6 +4,7 @@ import wx
 
 from src.controllers.main_menu import build_main_menu
 from src.models.screen_manager import ScreenManager
+from src.models.settings import Settings
 from src.view.announcer import Announcer
 from src.view.interface_sounds import InterfaceSounds
 from src.view.menu_screen import MenuScreen
@@ -19,7 +20,7 @@ def main(version: str):
     speaker = Speaker()
     sounds = InterfaceSounds()
     announcer = Announcer(frame, speaker, version)
-    manager = ScreenManager(frame, announcer, speaker, sounds, version)
+    manager = ScreenManager(frame, announcer, speaker, sounds, version, Settings())
 
     frame.Centre()
     frame.Show()

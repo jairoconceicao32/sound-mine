@@ -8,8 +8,8 @@ Este documento registra as decisões técnicas relevantes do Sound Mine e os mot
 
 - `sound_mine.py` na raiz é o ponto de entrada e apenas chama `src/main.py`.
 - Todo o código fica em `src/`:
-  - `src/controllers`: modelo e definições dos menus (`menu_model.py`, `menu_navigator.py`, `main_menu.py`).
-  - `src/models`: gerenciamento das telas (`screen_manager.py`).
+  - `src/controllers`: modelo e definições dos menus (`menu_model.py`, `menu_navigator.py`, `main_menu.py`) e o formulário de configurações (`settings.py`).
+  - `src/models`: gerenciamento das telas (`screen_manager.py`) e os valores das configurações (`settings.py`).
   - `src/view`: telas, exibição, teclado, fala e mensagens.
 - Testes em `tests/`, com `unittest` da biblioteca padrão.
 - A versão do programa fica na variável global `SOUND_MINE_VER`, no ponto de entrada `sound_mine.py`, e é passada para `main(version)`. Nenhum arquivo de `src/` define a versão. Valor atual: `Sound Mine 0.1.0 DEV`.
@@ -26,9 +26,25 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 
 **Como funciona:**
 
-- O foco fica na própria janela. Os painéis não aceitam foco (`NoFocusPanel`).
+- O foco fica em um ponto de foco invisível dentro da janela (`FocusSink`, em `src/view/screen.py`), e não na própria janela. Os painéis não aceitam foco (`NoFocusPanel`).
 - Todas as teclas chegam pelo `EVT_CHAR_HOOK` da janela e são traduzidas em comandos em um único lugar (`src/view/keys.py`). Isso garante a mesma navegação em todas as telas.
-- O foco é devolvido à janela com `wx.CallAfter` sempre que ela é exibida ou reativada.
+- O foco é devolvido com `wx.CallAfter` sempre que a janela é exibida ou reativada. Cada tela pode indicar outro destino para o foco (`focus_target`).
+
+**Ponto de foco invisível:** se o foco ficasse na janela, o NVDA falaria o título sempre que o foco voltasse para ela (por exemplo, ao sair de uma caixa de edição). O título deve ser falado apenas quando a janela ganha o foco e no NVDA+T. O ponto de foco tem como nome um caractere invisível (U+200B), porque o NVDA ignora nomes formados só por espaços e, para um objeto sem nome, fala o tipo ("desconhecido").
+
+**Exceção — controles nativos nas configurações:** a tela de configurações usa controles nativos do Windows nos campos em que o anúncio do próprio leitor de tela é necessário:
+
+| Campo | Controle | Anúncio do NVDA |
+|---|---|---|
+| Valor digitado | `wx.TextCtrl` | "editável" |
+| Percentual | `wx.Slider` | "controle deslizante" |
+| Ativar ou desativar | `wx.CheckBox` | "caixa de seleção, marcada / não marcada" |
+
+- Cada campo tem o seu próprio controle, com um rótulo (`wx.StaticText`) logo antes dele, para o NVDA ler o nome do campo.
+- O foco passa para o controle novo antes de o anterior ser escondido. Reaproveitar o mesmo controle, ou escondê-lo com o foco ainda nele, faz o NVDA não anunciar o campo ou cortar a fala.
+- Enquanto um controle nativo tem o foco, as teclas de edição passam direto para ele (`passes_key`). Tab, Ctrl+Tab, Enter e Esc continuam com o programa.
+- Ao sair de um controle nativo para um campo do programa, a fala desse campo espera 150 ms (`ANNOUNCE_DELAY_MS`), para não ser cortada pela troca de foco.
+- Listas, seletor de guias e botões continuam no sistema próprio, falados pelo programa.
 - Para quem enxerga, o item atual aparece em texto, com a posição (por exemplo, "Abrir arquivo (1 de 3)").
 
 **Expansão:** um menu é uma lista de `MenuItem` dentro de um `Menu`. Para adicionar, remover ou reordenar opções, basta editar essa lista. A lógica de navegação não muda.
@@ -43,6 +59,10 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 | Esc | Volta à tela anterior. No menu principal, fecha o programa sem confirmação. |
 | F1 | Disponível apenas nos menus que declaram `has_help=True` (previsto para o editor). |
 | Alt, Aplicativos e Alt+Espaço | Bloqueadas, para não abrir o menu do sistema do Windows. Alt+F4 continua fechando o programa. |
+| Tab e Shift+Tab | Nas configurações, passam pelos campos. Nos menus, não fazem nada. |
+| Ctrl+Tab e Ctrl+Shift+Tab | Nas configurações, trocam de guia. Nos menus, não fazem nada. |
+| Setas para os lados, Home, End, Page Up, Page Down, Backspace e Espaço | Usadas pelos controles nativos das configurações. Nos menus, não fazem nada. |
+| Números | Nos menus, funcionam como letras. Nas caixas de edição, são digitados. O teclado numérico também funciona. |
 
 - Letras repetidas em um mesmo menu são recusadas ao montar o menu.
 - Opções indisponíveis ficam ocultas (por exemplo, opções de edição sem arquivo aberto). Se a verificação de disponibilidade falhar, a opção também fica oculta.
@@ -61,7 +81,11 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 - Riscos: a biblioteca recebe poucas atualizações e carrega DLLs próprias.
 - Proteções: a versão está fixada em `requirements.txt`. Se a fala não iniciar, o programa continua funcionando e avisa o usuário ao abrir.
 
-**Mensagem de abertura:** ao abrir um menu, o programa fala e mostra a mensagem de abertura do menu (`intro`, ou o título quando não houver). Depois de 3 segundos (`MESSAGE_TIME_MS`), o texto sai da janela e o item atual é falado sem interromper a mensagem. Uma seta ou letra interrompe a mensagem imediatamente.
+**Mensagem de abertura:** ao abrir um menu, o programa fala e mostra a mensagem de abertura do menu (`intro`, ou o título quando não houver). Depois de 3 segundos (`MESSAGE_TIME_MS`), o texto sai da janela e o item atual é falado sem interromper a mensagem. Uma seta ou letra interrompe a mensagem imediatamente. Com a opção **Desativar dicas do programa** marcada, a mensagem de abertura é apenas o título do menu.
+
+**Sons da interface:** com a opção **Desativar sons da interface** marcada, `InterfaceSounds.enabled` fica falso e os sons deixam de tocar.
+
+**Configurações em memória:** os valores ficam em um objeto `Settings` (`src/models/settings.py`), criado ao abrir o programa e guardado no `ScreenManager`. A tela de configurações altera apenas uma cópia (o formulário), que só é aplicada ao salvar. Ainda não há arquivo de configurações.
 
 **Título da janela:** é sempre `SOUND_MINE_VER`, para que NVDA+T leia o nome e a versão do programa.
 

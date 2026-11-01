@@ -31,7 +31,8 @@ class MenuScreen(Screen):
     def on_activate(self) -> None:
         self._refresh()
         self._stop_message()
-        message = self._navigator.menu.opening_message
+        menu = self._navigator.menu
+        message = menu.title if self.manager.settings.disable_tips else menu.opening_message
         self._view.show_message(message)
         self.manager.speaker.speak(message)
         self._message_timer = wx.CallLater(MESSAGE_TIME_MS, self._end_message)

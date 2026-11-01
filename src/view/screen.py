@@ -20,6 +20,18 @@ class NoFocusPanel(wx.Panel):
         return False
 
 
+SILENT_NAME = "​"
+
+
+class FocusSink(wx.Panel):
+    def __init__(self, parent: wx.Window) -> None:
+        super().__init__(parent, size=(1, 1), style=wx.WANTS_CHARS, name="")
+        self.SetLabel(SILENT_NAME)
+
+    def AcceptsFocusFromKeyboard(self) -> bool:
+        return False
+
+
 class Screen(NoFocusPanel):
     def __init__(self, parent: wx.Window, manager: "ScreenManager") -> None:
         super().__init__(parent)
@@ -37,6 +49,12 @@ class Screen(NoFocusPanel):
 
     def handle_command(self, command: KeyCommand) -> bool:
         return False
+
+    def passes_key(self, command: KeyCommand) -> bool:
+        return False
+
+    def focus_target(self) -> wx.Window | None:
+        return None
 
     def help_lines(self) -> list[str]:
         return []

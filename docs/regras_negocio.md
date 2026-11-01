@@ -56,56 +56,90 @@ Ao utilizar as setas do teclado, será possível visualizar e navegar pelas opç
 
 Nesta opção, o usuário poderá definir as configurações gerais do Sound Mine.
 
-**Opções disponíveis:**
+As configurações são organizadas em guias, no mesmo estilo do Over Drive. Ao final de todas as guias ficam as opções **Salvar configurações** e **Cancelar**.
 
-**Idioma:** Define o idioma utilizado na interface do programa.
+Nesta versão do protótipo, as configurações ficam guardadas apenas enquanto o programa está aberto. Ainda não existe arquivo de configurações: ao abrir o programa, todos os valores voltam ao padrão.
 
-**Formato do arquivo:** Define o formato de áudio utilizado para salvar o arquivo após a edição.
+#### Navegação
 
-Formatos previstos:
+- `Tab` e `Shift+Tab`: passam pelos campos da guia atual e pelas opções Salvar configurações e Cancelar. Não há navegação circular.
+- O primeiro campo é o seletor de guias. Nele, as setas para cima e para baixo trocam de guia.
+- `Ctrl+Tab` e `Ctrl+Shift+Tab`: trocam de guia a partir de qualquer campo.
+- Nos campos de lista, as setas para cima e para baixo trocam o valor.
+- `Enter`: ativa Salvar configurações ou Cancelar.
+- `Esc`: cancela as configurações e volta ao menu principal.
 
-- MP3
-- M4A
-- WAV
-- OGG
+#### Guia Geral
 
-**Qualidade do áudio:** Permite definir a qualidade do áudio que será salvo.
+| Campo | Tipo | Opções | Padrão |
+|---|---|---|---|
+| Idioma | Lista | Português, inglês, espanhol | Português |
+| Formato de áudio que o arquivo será salvo | Lista | mp3, m4a, wav, ogg | mp3 |
+| Tipo de canal que o arquivo será salvo | Lista | Estéreo, Mono | Estéreo |
+| Taxa de amostragem que o áudio será salvo | Lista | 44100, 48000, 96000 | 44100 |
+| Desativar sons da interface | Caixa de seleção | Marcada ou não marcada | Não marcada |
+| Desativar dicas do programa | Caixa de seleção | Marcada ou não marcada | Não marcada |
 
-Opções previstas:
+- **Formato de áudio que o arquivo será salvo:** define o formato de áudio utilizado para salvar o arquivo após a edição.
+- **Tipo de canal que o arquivo será salvo:** define se o arquivo será salvo em Estéreo ou Mono.
+- **Taxa de amostragem que o áudio será salvo:** define a taxa de amostragem, em hertz, do arquivo salvo. Substitui a opção **Qualidade do áudio** (DVD, Rádio, CD) prevista inicialmente.
+- **Desativar sons da interface:** quando marcada, os sons de navegação, confirmação e fechamento deixam de tocar. O som de abertura sempre toca, porque acontece antes de as configurações poderem ser alteradas.
+- **Desativar dicas do programa:** quando marcada, os menus falam apenas o título ao abrir (por exemplo, "Menu principal"), sem a explicação de navegação.
+- **Idioma:** inglês e espanhol ainda não têm tradução; a escolha é guardada, mas a interface continua em português.
 
-- DVD
-- Rádio
-- CD
+#### Guia Efeitos de áudio
 
-**Canais de áudio:** Permite definir a configuração dos canais de áudio.
+| Campo | Tipo | Faixa | Padrão |
+|---|---|---|---|
+| Milissegundos para o eco | Caixa de edição | 10 a 2000 | 300 |
+| Percentual do eco | Controle deslizante | 0 a 100% | 75% |
+| Milissegundos para o reverbe | Caixa de edição | 10 a 2000 | 300 |
+| Percentual do reverbe | Controle deslizante | 0 a 100% | 80% |
 
-Opções disponíveis:
+Os efeitos serão aplicados ao áudio quando as operações de edição forem implementadas.
 
-- Estéreo
-- Mono
+#### Guia Desempenho
 
-**Salvar configurações:** Aplica e salva as configurações selecionadas pelo usuário.
+| Campo | Tipo | Faixa | Padrão |
+|---|---|---|---|
+| Memória em megabytes | Caixa de edição | 0 a 4096 (0 = Automático) | 0 (Automático) |
+| Buffers para tocar | Caixa de edição | 1 a 32 | 4 |
+| Buffers para gravar | Caixa de edição | 1 a 32 | 4 |
 
-**Cancelar:** Cancela as alterações realizadas nas configurações.
+#### Tipos de campo
 
-**Fechar:** Fecha o programa.
+- **Lista:** as setas para cima e para baixo trocam o valor.
+- **Caixa de edição:** o valor é digitado. Aceita apenas números. `Backspace` e `Delete` apagam, e o leitor de tela informa "em branco" quando o campo fica vazio. `Tab`, `Shift+Tab`, `Ctrl+Tab` ou `Enter` confirmam o valor. `Esc` desfaz a edição; um segundo `Esc` cancela as configurações.
+- **Controle deslizante:** as setas mudam o valor de 5 em 5, `Page Up` e `Page Down` de 10 em 10, e `Home` e `End` levam ao mínimo e ao máximo.
+- **Caixa de seleção:** `Espaço` marca e desmarca.
+
+#### Opções
+
+**Salvar configurações:** aplica e guarda as configurações, volta ao menu principal e informa "Configurações salvas.".
+
+**Cancelar:** descarta as alterações e volta ao menu principal.
 
 #### Critérios de aceitabilidade
 
 - O programa deverá permitir a seleção do idioma disponível.
 - O programa deverá permitir a seleção de um formato de áudio suportado para salvar o arquivo.
-- O programa deverá permitir a seleção da qualidade do áudio.
+- O programa deverá permitir a seleção da taxa de amostragem.
 - O programa deverá permitir a seleção entre Mono e Estéreo.
-- A opção **Salvar configurações** deverá aplicar e salvar as alterações realizadas.
-- A opção **Cancelar** deverá descartar as alterações realizadas durante a configuração.
-- A opção **Fechar** deverá encerrar o programa.
+- O programa deverá permitir digitar os valores das caixas de edição e ajustar os controles deslizantes dentro das faixas definidas.
+- O programa deverá permitir desativar os sons da interface e as dicas do programa.
+- O usuário deverá conseguir navegar entre as guias e os campos usando apenas o teclado.
+- O leitor de tela deverá anunciar o nome, o tipo e o valor de cada campo.
+- A opção **Salvar configurações** deverá aplicar e guardar as alterações realizadas.
+- A opção **Cancelar** e a tecla `Esc` deverão descartar as alterações realizadas durante a configuração.
 
 #### Critérios de não aceitabilidade
 
 - O programa não deverá permitir a seleção de formatos não suportados.
 - O programa não deverá aplicar configurações inválidas.
+- O programa não deverá aceitar valores fora da faixa ou que não sejam números. Nesse caso, deverá informar "Valor inválido", manter o valor anterior e permanecer no campo.
 - A opção **Cancelar** não deverá aplicar as alterações realizadas durante a configuração.
 - O programa não deverá apresentar as configurações como salvas caso a operação de salvamento não tenha sido concluída.
+- O título do programa não deverá ser falado ao navegar entre os campos.
 
 ---
 
