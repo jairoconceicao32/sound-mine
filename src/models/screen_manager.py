@@ -1,0 +1,129 @@
+import logging
+
+import wx
+
+from src.view.announcer import Announcer
+from src.view.interface_sounds import InterfaceSounds
+from src.view.keys import Command, translate
+from src.view.screen import NoFocusPanel, Screen
+from src.view.speaker import Speaker
+
+logger = logging.getLogger(__name__)
+
+class ScreenManager:
+    def __init__(self, frame: wx.Frame, announcer: Announcer, speaker: Speaker,
+                 sounds: InterfaceSounds) -> None:
+        self._frame = frame
+        self.announcer = announcer
+        self.speaker = speaker
+        self.sounds = sounds
+        self._stack: list[Screen] = []
+
+        self._key_panel = NoFocusPanel(frame, style=wx.WANTS_CHARS)
+        self._container = NoFocusPanel(self._key_panel)
+        self._sizer = wx.BoxSizer(wx.VERTICAL)
+        self._container.SetSizer(self._sizer)
+
+        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        panel_sizer.Add(self._container, 1, wx.EXPAND)
+        self._key_panel.SetSizer(panel_sizer)
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(self._key_panel, 1, wx.EXPAND)
+        frame.SetSizer(outer)
+
+        frame.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
+        frame.Bind(wx.EVT_ACTIVATE, self._on_activate_window)
+        frame.Bind(wx.EVT_CLOSE, self._on_close)
+
+    @property
+    def parent(self) -> wx.Window:
+        return self._container
+
+    @property
+    def current(self) -> Screen | None:
+        return self._stack[-1] if self._stack else None
+
+    def focus_window(self) -> None:
+        wx.CallAfter(self._focus_now)
+
+    def push(self, screen: Screen) -> None:
+        if self._stack:
+            self._stack[-1].on_deactivate()
+            self._stack[-1].Hide()
+        self._stack.append(screen)
+        self._sizer.Add(screen, 1, wx.EXPAND)
+        self._show(screen)
+
+    def pop(self) -> None:
+        if len(self._stack) <= 1:
+            self.close()
+            return
+        screen = self._stack.pop()
+        screen.on_deactivate()
+        self._sizer.Detach(screen)
+        screen.Destroy()
+        self._show(self._stack[-1])
+
+    def close(self) -> None:
+        if self.current is not None:
+            self.current.on_deactivate()
+        wx.CallAfter(self._frame.Close)
+
+    def show_help(self) -> None:
+        screen = self.current
+        if screen is None:
+            return
+        lines = screen.help_lines()
+        if not lines:
+            return
+        screen.on_deactivate()
+        self.announcer.dialog("\n".join(lines), f"Ajuda - {screen.title}")
+        self.focus_window()
+
+    def _show(self, screen: Screen) -> None:
+        screen.Show()
+        self._container.Layout()
+        self._key_panel.Layout()
+        self.focus_window()
+        screen.on_activate()
+
+    def _focus_now(self) -> None:
+        if self._frame and not self._frame.IsBeingDeleted():
+            self._frame.SetFocus()
+
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        try:
+            if self.current is not None:
+                self.current.on_deactivate()
+            self._frame.Hide()
+            self.sounds.play_and_wait("close")
+            self.sounds.close()
+        except Exception:
+            logger.exception("Falha ao encerrar o programa.")
+        finally:
+            event.Skip()
+
+    def _on_activate_window(self, event: wx.ActivateEvent) -> None:
+        if event.GetActive():
+            self.focus_window()
+        event.Skip()
+
+    def _on_char_hook(self, event: wx.KeyEvent) -> None:
+        command = translate(event)
+        if command is None:
+            event.Skip()
+            return
+
+        screen = self.current
+        if screen is not None and screen.handle_command(command):
+            return
+
+        if command.command is Command.BACK:
+            self.pop()
+        elif command.command is Command.HELP:
+            self.show_help()
+        elif command.command is Command.BLOCKED:
+            pass
+        else:
+            event.Skip()

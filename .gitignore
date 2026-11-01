@@ -33,3 +33,6 @@ dmypy.json
 *.tmp
 *.bak
 *.swp
+
+# Testes
+tests/

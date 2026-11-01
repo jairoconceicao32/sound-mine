@@ -1,0 +1,4 @@
+wxPython==4.3.2
+accessible_output2==0.17
+soundfile==0.13.1
+sounddevice==0.5.2
