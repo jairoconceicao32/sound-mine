@@ -45,10 +45,14 @@ class MenuScreen(Screen):
             case Command.UP:
                 if self._navigator.move_up():
                     self._on_moved()
+                else:
+                    self.manager.sounds.play("border")
                 return True
             case Command.DOWN:
                 if self._navigator.move_down():
                     self._on_moved()
+                else:
+                    self.manager.sounds.play("border")
                 return True
             case Command.ACTIVATE:
                 self._stop_message()

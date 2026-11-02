@@ -121,8 +121,10 @@ def _initial_value(field: InputField, value: str | int | bool | None) -> str | i
 
 class SettingsForm:
     def __init__(self, title: str, tabs: Sequence[SettingsTab],
-                 buttons: Sequence[ButtonField], values: dict[str, str | int | bool]) -> None:
+                 buttons: Sequence[ButtonField], values: dict[str, str | int | bool],
+                 show_tab_selector: bool = True) -> None:
         self.title = title
+        self.show_tab_selector = show_tab_selector
         self._tabs = tuple(tabs)
         if not self._tabs:
             raise SettingsDefinitionError(f"O formulário {title!r} não tem guias.")
@@ -159,6 +161,8 @@ class SettingsForm:
 
     @property
     def fields(self) -> tuple[Field, ...]:
+        if not self.show_tab_selector:
+            return (*self.tab.fields, *self._buttons)
         return (TAB_FIELD, *self.tab.fields, *self._buttons)
 
     @property

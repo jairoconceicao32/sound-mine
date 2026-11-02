@@ -159,8 +159,11 @@ Ao utilizar as setas do teclado, será possível visualizar e navegar pelas opç
 2. Remover partes do áudio.
 3. Misturar arquivos de áudio.
 4. Desfazer alterações.
+5. Salvar arquivo.
 
 Cada funcionalidade deverá apresentar suas respectivas opções de edição.
+
+Ao sair do menu de edição com a tecla `Esc`, caso existam alterações não salvas, o programa deverá apresentar a confirmação **Sair do editor**, com as opções **Não** e **Sim**, navegável por letras. **Não** volta ao menu de edição e **Sim** sai sem salvar. Sem alterações não salvas, o programa volta diretamente ao menu principal.
 
 #### Critérios de aceitabilidade
 
@@ -190,7 +193,9 @@ O Sound Mine contará com um mini player para reprodução do arquivo de áudio.
 
 Durante a reprodução, o usuário poderá acessar os controles disponíveis no mini player.
 
-As funcionalidades de edição também deverão permanecer acessíveis durante a utilização do mini player, respeitando o comportamento definido para cada operação.
+Ao selecionar **Tocar arquivo**, o programa abre o mini player e inicia a reprodução.
+
+Enquanto o mini player estiver aberto, o menu de edição fica bloqueado, seguindo o estilo do DOSVOX. A tecla `Esc` pausa a reprodução e volta ao menu de edição, que pergunta novamente "Qual sua opção?".
 
 #### Critérios de aceitabilidade
 
@@ -200,6 +205,7 @@ As funcionalidades de edição também deverão permanecer acessíveis durante a
 - O atalho `T` deverá executar a mesma ação disponível no menu.
 - O mini player deverá permitir a reprodução do arquivo aberto.
 - O usuário deverá conseguir acessar os controles disponíveis no mini player.
+- O menu de edição deverá ficar bloqueado enquanto o mini player estiver aberto.
 
 #### Critérios de não aceitabilidade
 
@@ -271,6 +277,8 @@ O usuário poderá definir a porcentagem de volume de cada arquivo:
 
 A funcionalidade deverá permitir ajustar o volume dos dois arquivos para definir o resultado da mistura.
 
+Os volumes são definidos em um formulário com dois controles deslizantes, navegados por `Tab` e `Shift+Tab`: **Volume do áudio original** (padrão 100%) e **Volume da música de fundo** (padrão 30%), seguidos das opções **Adicionar fundo sonoro** e **Cancelar**.
+
 O fundo sonoro poderá ser adicionado nas seguintes posições:
 
 - No início.
@@ -318,6 +326,8 @@ A confirmação deverá ser navegável por letras, seguindo o estilo de navegaç
 
 O programa deverá apresentar uma caixa de diálogo sinalizando a confirmação da operação.
 
+Enquanto o arquivo não tiver sido salvo, a última versão salva é o arquivo como foi aberto.
+
 A funcionalidade poderá ser ampliada para permitir desfazer outras modificações em futuras versões do Sound Mine.
 
 #### Critérios de aceitabilidade
@@ -338,6 +348,31 @@ A funcionalidade poderá ser ampliada para permitir desfazer outras modificaçõ
 - Caso o usuário selecione Não, o programa não deverá recuperar a versão salva.
 - O programa não deverá apresentar a operação como concluída caso a recuperação do arquivo não tenha sido realizada.
 - O programa deverá informar ao usuário caso não seja possível recuperar a versão salva.
+
+---
+
+### RN02.5 — Salvar arquivo
+
+A opção **Salvar** (letra `S`) grava o áudio editado em um arquivo.
+
+O programa abre a janela de salvar do Windows, na pasta do arquivo aberto, propondo o nome do arquivo seguido de `_editado`.
+
+O arquivo é salvo no formato, no tipo de canal e na taxa de amostragem definidos nas **Configurações**. Se o formato não aceitar a taxa configurada, o programa usa a maior taxa aceita pelo formato e informa o usuário.
+
+Depois de salvar, a versão salva passa a ser a usada pela opção **Desfazer**.
+
+#### Critérios de aceitabilidade
+
+- O programa deverá salvar o áudio editado nos formatos MP3, M4A, WAV e OGG.
+- O arquivo salvo deverá respeitar o formato, o tipo de canal e a taxa de amostragem das configurações.
+- O programa deverá informar quando o arquivo for salvo.
+- A opção **Desfazer** deverá recuperar a última versão salva.
+
+#### Critérios de não aceitabilidade
+
+- O programa não deverá sobrescrever um arquivo existente, inclusive o original, sem confirmação.
+- O programa não deverá apresentar o arquivo como salvo caso a gravação não tenha sido concluída.
+- Caso a gravação falhe, o programa deverá informar o erro e manter o arquivo de destino como estava.
 
 ---
 
@@ -365,17 +400,29 @@ Permitem controlar o volume do áudio durante a reprodução.
 
 As opções deverão permitir aumentar e diminuir o volume do arquivo de áudio.
 
-### Letras dos menus
+### Espaço — Reproduzir e pausar
 
-As letras utilizadas nos menus deverão permitir acessar e executar as funcionalidades de edição disponíveis no Sound Mine.
+Reproduz ou pausa o arquivo de áudio.
 
-### Setas do teclado
+### Setas para a esquerda e para a direita — Voltar e avançar
 
-As setas do teclado também poderão ser utilizadas para acessar e navegar pelas opções disponíveis.
+Voltam e avançam a reprodução em 5 segundos.
 
-Durante a utilização das setas para acessar as opções de edição, a reprodução do áudio será interrompida automaticamente.
+### Home e End — Início e fim do som
 
-A possibilidade de interromper automaticamente a reprodução durante a navegação poderá ser revisada posteriormente, caso seja identificada uma dificuldade de utilização por parte dos usuários.
+`Home` leva ao começo do som e `End` leva ao fim do som. O leitor de tela informa "Início do som" e "Fim do som".
+
+### M — Memorizar ponto
+
+Memoriza a posição atual da reprodução. O leitor de tela informa "Ponto memorizado em" seguido do tempo. O ponto memorizado é usado na opção **Entre o cursor e o ponto memorizado** (RN02.2).
+
+### Esc — Voltar ao editor
+
+Pausa a reprodução e volta ao menu de edição. A posição em que o som parou passa a ser a posição do cursor.
+
+### Bloqueio do menu de edição
+
+Enquanto o mini player estiver aberto, as letras e as setas do menu de edição ficam bloqueadas, seguindo o estilo do DOSVOX.
 
 #### Critérios de aceitabilidade
 
@@ -383,9 +430,11 @@ A possibilidade de interromper automaticamente a reprodução durante a navegaç
 - O atalho `F1` deverá apresentar a ajuda com as opções disponíveis no programa.
 - O atalho `F2` deverá apresentar informações sobre o tempo de reprodução.
 - Os atalhos `F3` e `F4` deverão permitir controlar o volume do áudio.
-- As letras dos menus deverão permitir acessar as funcionalidades de edição.
-- As setas do teclado deverão permitir navegar pelas opções disponíveis.
-- A utilização das setas para acessar as opções de edição deverá interromper automaticamente a reprodução do áudio.
+- O atalho `Espaço` deverá reproduzir e pausar o áudio.
+- As setas para a esquerda e para a direita deverão voltar e avançar 5 segundos.
+- Os atalhos `Home` e `End` deverão levar ao início e ao fim do som, com o anúncio "Início do som" e "Fim do som".
+- O atalho `Esc` deverá pausar a reprodução e voltar ao menu de edição.
+- O menu de edição deverá ficar bloqueado enquanto o mini player estiver aberto.
 - O usuário deverá conseguir acessar os controles previstos durante a utilização do mini player.
 
 #### Critérios de não aceitabilidade

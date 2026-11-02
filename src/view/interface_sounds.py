@@ -8,7 +8,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 SOUNDS_DIR = Path(__file__).resolve().parents[2] / "sounds" / "interface"
-SOUND_NAMES = ("startup", "close", "navigation", "confirme")
+SOUND_NAMES = ("startup", "close", "navigation", "confirme", "border")
 MAX_FILE_SIZE = 5 * 1024 * 1024
 MAX_WAIT_SECONDS = 3.0
 SILENCE_THRESHOLD = 0.01

@@ -33,6 +33,10 @@ dmypy.json
 *.tmp
 *.bak
 *.swp
+.sound_mine_*
 
-# Testes
-tests/
+# Áudios gerados para validação (recriados por tests/gerar_audios.py)
+tests/audios/
+
+# Arquivos salvos pelo editor durante os testes
+*_editado.*

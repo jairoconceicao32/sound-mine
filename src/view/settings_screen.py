@@ -92,6 +92,9 @@ class SettingsScreen(Screen):
 
     def on_activate(self) -> None:
         self._update_view()
+        if self._native_control() is not None:
+            self._show_native()
+            return
         self.manager.speaker.speak(f"{self._form.title}.")
         self.manager.speaker.speak(self._form.text_of(self._form.current()), interrupt=False)
 
@@ -282,7 +285,10 @@ class SettingsScreen(Screen):
 
     def _update_view(self) -> None:
         form = self._form
-        self._view.show_message(
-            f"Guia {form.tab.name}  ({form.tab_index + 1} de {form.tab_count})"
-        )
+        if form.show_tab_selector:
+            self._view.show_message(
+                f"Guia {form.tab.name}  ({form.tab_index + 1} de {form.tab_count})"
+            )
+        else:
+            self._view.show_message(form.title)
         self._view.show_item(form.text_of(form.current()), form.field_index, len(form.fields))

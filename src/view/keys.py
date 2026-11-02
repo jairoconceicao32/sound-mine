@@ -24,6 +24,9 @@ class Command(Enum):
     LEFT = auto()
     RIGHT = auto()
     SPACE = auto()
+    TIME = auto()
+    VOLUME_DOWN = auto()
+    VOLUME_UP = auto()
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,9 @@ _KEY_MAP = {
     wx.WXK_NUMPAD_ENTER: Command.ACTIVATE,
     wx.WXK_ESCAPE: Command.BACK,
     wx.WXK_F1: Command.HELP,
+    wx.WXK_F2: Command.TIME,
+    wx.WXK_F3: Command.VOLUME_DOWN,
+    wx.WXK_F4: Command.VOLUME_UP,
     wx.WXK_PAGEUP: Command.PAGE_UP,
     wx.WXK_NUMPAD_PAGEUP: Command.PAGE_UP,
     wx.WXK_PAGEDOWN: Command.PAGE_DOWN,
