@@ -1,7 +1,5 @@
 from collections.abc import Callable
-
 import wx
-
 from src.controllers.background_form import build_background_form
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
 from src.models import audio_edit
@@ -58,14 +56,14 @@ def build_editor_menu(manager, player) -> Menu:
 
     def remove_before() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_before(data, cursor),
-              "Trecho antes do cursor removido.")
+              "Trecho anterior removido.")
 
     def remove_after() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_after(data, cursor),
-              "Trecho depois do cursor removido.")
+              "Trecho posterior removido.")
 
     def remove_between() -> None:
-        apply(audio_edit.remove_between, "Trecho entre o cursor e o ponto memorizado removido.")
+        apply(audio_edit.remove_between, "Trecho removido.")
 
     def choose_and_load():
         path = choose_audio_file(manager.parent.GetTopLevelParent())
