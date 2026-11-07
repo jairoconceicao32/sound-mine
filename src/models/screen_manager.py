@@ -1,5 +1,7 @@
 import logging
+
 import wx
+
 from src.models.settings import Settings
 from src.view.announcer import Announcer
 from src.view.interface_sounds import InterfaceSounds
@@ -24,6 +26,7 @@ _IGNORED_COMMANDS = {
     Command.RIGHT,
     Command.SPACE,
 }
+
 
 class ScreenManager:
     def __init__(self, frame: wx.Frame, announcer: Announcer, speaker: Speaker,

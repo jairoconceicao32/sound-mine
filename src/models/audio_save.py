@@ -28,7 +28,6 @@ def output_rate(file_format: str, requested_rate: int) -> int:
 
 def convert(data: np.ndarray, rate: int, target_rate: int, mono: bool) -> np.ndarray:
     import av
-
     layout = "mono" if mono else "stereo"
     resampler = av.AudioResampler(format="flt", layout=layout, rate=target_rate)
     source = np.ascontiguousarray(data, dtype=np.float32)
@@ -87,7 +86,6 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
 
 def _encode(samples: np.ndarray, rate: int, path: Path, file_format: str, mono: bool) -> None:
     import av
-
     container_format, codec, frame_size = CODECS[file_format]
     layout = "mono" if mono else "stereo"
     planar = np.ascontiguousarray(samples.T)
@@ -107,7 +105,6 @@ def _encode(samples: np.ndarray, rate: int, path: Path, file_format: str, mono: 
 
 def _write_soundfile(samples: np.ndarray, rate: int, path: Path, file_format: str) -> None:
     import soundfile
-
     options = {"format": "WAV", "subtype": "PCM_16"}
     if file_format == "ogg":
         options = {"format": "OGG", "subtype": "VORBIS"}

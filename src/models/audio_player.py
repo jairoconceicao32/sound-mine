@@ -1,14 +1,13 @@
 import logging
 import threading
-from collections.abc import Callable
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 
 from src.models.audio_edit import EditError
 from src.models.audio_save import save_audio
-
 
 logger = logging.getLogger(__name__)
 

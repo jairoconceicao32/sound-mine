@@ -1,5 +1,7 @@
 from collections.abc import Callable
+
 import wx
+
 from src.controllers.background_form import build_background_form
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
 from src.models import audio_edit

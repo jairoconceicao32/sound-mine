@@ -65,7 +65,6 @@ _KEY_MAP = {
 
 _BLOCKED_KEYS: set[int] = set()
 
-
 _SYSTEM_MENU_KEYS = {wx.WXK_ALT, wx.WXK_MENU}
 
 

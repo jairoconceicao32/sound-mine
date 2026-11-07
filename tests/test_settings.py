@@ -90,7 +90,6 @@ class SettingsFormTests(unittest.TestCase):
             SettingsForm("T", [SettingsTab("A", [field]), SettingsTab("B", [field])], [], {})
 
 
-
 def make_number_form(value=None) -> SettingsForm:
     form = SettingsForm(
         "Configurações",
@@ -217,7 +216,6 @@ class NumberFieldTests(unittest.TestCase):
     def test_rejects_invalid_range(self):
         with self.assertRaises(SettingsDefinitionError):
             NumberField("x", "X", minimum=10, maximum=10)
-
 
 
 class ToggleFieldTests(unittest.TestCase):
