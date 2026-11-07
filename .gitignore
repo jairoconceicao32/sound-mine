@@ -40,3 +40,6 @@ tests/audios/
 
 # Arquivos salvos pelo editor durante os testes
 *_editado.*
+
+# Arquivos de planejamento
+proximos passos.md
