@@ -3,3 +3,4 @@ accessible_output2==0.17
 soundfile==0.13.1
 sounddevice==0.5.2
 av==19.0.2
+numpy==2.5.4
