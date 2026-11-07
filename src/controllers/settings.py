@@ -2,17 +2,17 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 LANGUAGES = ("Português", "inglês", "espanhol")
-formate_file = (
+SAVE_FORMATS = (
     "mp3",
     "m4a",
     "wav",
     "ogg",
 )
-chanel_audio = (
+CHANNELS = (
     "Estéreo",
     "Mono"
 )
-sample_rate = (
+SAMPLE_RATES = (
     "44100",
     "48000",
     "96000"
@@ -337,9 +337,9 @@ def build_settings_form(manager) -> SettingsForm:
         tabs=[
             SettingsTab("Geral", [
                 OptionField("language", "Idioma", LANGUAGES),
-                OptionField("format", "Formato de áudio que o arquivo será salvo", formate_file),
-                OptionField("channel", "Tipo de canal que o arquivo será salvo", chanel_audio),
-                OptionField("sample_rate", "Taxa de amostragem que o áudio será salvo", sample_rate),
+                OptionField("format", "Formato de áudio que o arquivo será salvo", SAVE_FORMATS),
+                OptionField("channel", "Tipo de canal que o arquivo será salvo", CHANNELS),
+                OptionField("sample_rate", "Taxa de amostragem que o áudio será salvo", SAMPLE_RATES),
                 ToggleField("disable_sounds", "Desativar sons da interface"),
                 ToggleField("disable_tips", "Desativar dicas do programa"),
             ]
