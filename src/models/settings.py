@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 @dataclass
 class Settings:
     language: str = "Português"
@@ -10,7 +9,7 @@ class Settings:
     echo_delay: int = 300
     echo_percent: int = 75
     reverb_percent: int = 80
-    reverb_delay: int = 300
+    reverb_delay: int = 200
     memory_mb: int = 0
     play_buffers: int = 4
     record_buffers: int = 4
