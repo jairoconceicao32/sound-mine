@@ -39,12 +39,15 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 | Valor digitado | `wx.TextCtrl` | "editável" |
 | Percentual | `wx.Slider` | "controle deslizante" |
 | Ativar ou desativar | `wx.CheckBox` | "caixa de seleção, marcada / não marcada" |
+| Botões do formulário (por exemplo, Salvar e Cancelar) | `wx.Button` | "botão" |
 
-- Cada campo tem o seu próprio controle, com um rótulo (`wx.StaticText`) logo antes dele, para o NVDA ler o nome do campo.
+- Cada campo tem o seu próprio controle, com um rótulo (`wx.StaticText`) logo antes dele, para o NVDA ler o nome do campo. Os botões não têm rótulo separado: o NVDA lê o texto do próprio botão.
 - O foco passa para o controle novo antes de o anterior ser escondido. Reaproveitar o mesmo controle, ou escondê-lo com o foco ainda nele, faz o NVDA não anunciar o campo ou cortar a fala.
 - Enquanto um controle nativo tem o foco, as teclas de edição passam direto para ele (`passes_key`). Tab, Ctrl+Tab, Enter e Esc continuam com o programa.
+- Nos botões, nenhuma tecla passa direto para o controle. Enter executa a ação pelo programa (som de confirmação e depois a ação), e Espaço, letras e setas não têm efeito. O clique do mouse também executa a ação.
 - Ao sair de um controle nativo para um campo do programa, a fala desse campo espera 150 ms (`ANNOUNCE_DELAY_MS`), para não ser cortada pela troca de foco.
-- Listas, seletor de guias e botões continuam no sistema próprio, falados pelo programa.
+- Os botões passaram a ser nativos porque essa espera causava um atraso perceptível na leitura ao ir, com Tab, do último campo de uma guia até Salvar. Com o `wx.Button`, o próprio NVDA anuncia o botão ao receber o foco, sem espera.
+- Listas e seletor de guias continuam no sistema próprio, falados pelo programa. Por isso a espera ainda acontece com Shift+Tab do primeiro campo nativo de volta para o seletor de guias.
 - O mesmo formulário é usado nos volumes do Fundo sonoro (DT07), com a opção `show_tab_selector=False`: sem seletor de guias, o primeiro campo já é um controle nativo, que recebe o foco ao abrir e é anunciado pelo próprio NVDA.
 - Para quem enxerga, o item atual aparece em texto, com a posição (por exemplo, "Abrir arquivo (1 de 3)").
 

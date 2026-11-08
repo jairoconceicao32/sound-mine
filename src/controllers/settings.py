@@ -148,6 +148,10 @@ class SettingsForm:
         return self._tabs
 
     @property
+    def buttons(self) -> tuple[ButtonField, ...]:
+        return self._buttons
+
+    @property
     def tab(self) -> SettingsTab:
         return self._tabs[self._tab_index]
 

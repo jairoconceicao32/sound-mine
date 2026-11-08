@@ -57,7 +57,17 @@ class SettingsScreen(Screen):
                     if label is not None:
                         sizer.Add(label, 0, wx.LEFT | wx.RIGHT, 10)
                     sizer.Add(control, 0, wx.EXPAND | wx.ALL, 10)
+        for field in form.buttons:
+            button = wx.Button(self, label=field.label)
+            button.Bind(wx.EVT_BUTTON, lambda event: self._on_activate_field())
+            button.Hide()
+            self._controls[self._key_of(field)] = (None, button)
+            sizer.Add(button, 0, wx.ALL, 10)
         self.SetSizer(sizer)
+
+    @staticmethod
+    def _key_of(field: NumberField | ToggleField | ButtonField) -> str:
+        return f"button:{field.label}" if isinstance(field, ButtonField) else field.key
 
     def _create_control(self, field: NumberField | ToggleField
                         ) -> tuple[wx.StaticText | None, wx.Window]:
@@ -104,6 +114,8 @@ class SettingsScreen(Screen):
     def passes_key(self, command: KeyCommand) -> bool:
         control = self._native_control()
         if control is None:
+            return False
+        if isinstance(control, wx.Button):
             return False
         if isinstance(control, wx.CheckBox):
             return command.command is Command.SPACE
@@ -153,7 +165,9 @@ class SettingsScreen(Screen):
                 if self._commit_edit():
                     self._on_field_moved(self._form.prev_tab())
             case Command.ACTIVATE:
-                if self._editable_field() is not None and self._commit_edit():
+                if isinstance(self._form.current(), ButtonField):
+                    self._on_activate_field()
+                elif self._editable_field() is not None and self._commit_edit():
                     self.manager.sounds.play("confirme")
                     self.manager.speaker.speak(self._form.value_of(self._form.current()))
             case Command.BACK:
@@ -172,8 +186,8 @@ class SettingsScreen(Screen):
 
     def _native_control(self) -> wx.Window | None:
         field = self._form.current()
-        if isinstance(field, (NumberField, ToggleField)):
-            return self._controls[field.key][1]
+        if isinstance(field, (NumberField, ToggleField, ButtonField)):
+            return self._controls[self._key_of(field)][1]
         return None
 
     def _current_text(self, field: NumberField) -> str:
@@ -228,10 +242,10 @@ class SettingsScreen(Screen):
         had_native = bool(previous)
         if target is not None:
             field = self._form.current()
-            label = self._controls[field.key][0]
+            label = self._controls[self._key_of(field)][0]
             if isinstance(target, (wx.Slider, wx.CheckBox)):
                 target.SetValue(self._form.values[field.key])
-            else:
+            elif isinstance(target, wx.TextCtrl):
                 target.ChangeValue(self._current_text(field))
             if label is not None:
                 label.Show()
