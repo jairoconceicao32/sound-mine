@@ -1,11 +1,12 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 
 from src.models.audio_player import load_audio
-from src.models.audio_save import AudioSaveError, save_audio
+from src.models.audio_save import PERMISSION_MESSAGE, AudioSaveError, save_audio
 
 RATE = 48000
 
@@ -63,6 +64,31 @@ class SaveAudioTests(unittest.TestCase):
         save_audio(self.data, RATE, path, "wav", "Estéreo", 44100)
         self.assertGreater(path.stat().st_size, 100)
         self.assertEqual([item.name for item in self.folder.iterdir()], ["saida.wav"])
+
+    def test_unwritable_folder_reports_permission(self):
+        denied = PermissionError(13, "Permission denied")
+        with mock.patch("src.models.audio_save.tempfile.mkstemp", side_effect=denied):
+            with self.assertRaises(AudioSaveError) as context:
+                save_audio(self.data, RATE, self.folder / "saida.wav", "wav", "Estéreo", 44100)
+        self.assertEqual(str(context.exception), PERMISSION_MESSAGE)
+
+    def test_temporary_file_failure_reports_generic_error(self):
+        disk_full = OSError(28, "No space left on device")
+        with mock.patch("src.models.audio_save.tempfile.mkstemp", side_effect=disk_full):
+            with self.assertLogs("src.models.audio_save", "ERROR"):
+                with self.assertRaises(AudioSaveError) as context:
+                    save_audio(self.data, RATE, self.folder / "saida.wav", "wav", "Estéreo", 44100)
+        self.assertEqual(str(context.exception), "Não foi possível salvar o arquivo.")
+
+    def test_failed_temporary_file_leaves_folder_unchanged(self):
+        path = self.folder / "saida.wav"
+        path.write_bytes(b"antigo")
+        denied = PermissionError(13, "Permission denied")
+        with mock.patch("src.models.audio_save.tempfile.mkstemp", side_effect=denied):
+            with self.assertRaises(AudioSaveError):
+                save_audio(self.data, RATE, path, "wav", "Estéreo", 44100)
+        self.assertEqual([item.name for item in self.folder.iterdir()], ["saida.wav"])
+        self.assertEqual(path.read_bytes(), b"antigo")
 
 
 if __name__ == "__main__":

@@ -313,6 +313,46 @@ class CorruptedFileTests(unittest.TestCase):
         self.assert_corrupted_is_refused("id3_invalido", content)
 
 
+class PermissionTests(unittest.TestCase):
+    FILE_NAME = "bloqueado_teste.wav"
+    PERMISSION_MESSAGE = "Sem permissão para ler o arquivo, ou o arquivo está em uso por outro programa."
+
+    def setUp(self):
+        self._folder = tempfile.TemporaryDirectory()
+        self.folder = Path(self._folder.name)
+        self.path = self.folder / self.FILE_NAME
+        self.path.write_bytes(b"RIFF" + bytes(64))
+        denied = av.error.PermissionError(13, "Permission denied", str(self.path))
+        self._open = mock.patch("av.open", side_effect=denied)
+        self._open.start()
+
+    def tearDown(self):
+        self._open.stop()
+        self._folder.cleanup()
+
+    def load_locked(self) -> tuple[str, list[str]]:
+        with self.assertLogs("src.models.audio_player", "WARNING") as logs:
+            with self.assertRaises(AudioLoadError) as context:
+                load_audio(self.path)
+        return str(context.exception), logs.output
+
+    def test_locked_file_reports_permission(self):
+        message, _ = self.load_locked()
+        self.assertEqual(message, self.PERMISSION_MESSAGE)
+
+    def test_locked_file_is_not_reported_as_corrupted(self):
+        message, _ = self.load_locked()
+        self.assertNotEqual(message, CORRUPTED_MESSAGE)
+
+    def test_locked_file_log_has_no_file_name(self):
+        _, output = self.load_locked()
+        text = "\n".join(output)
+        self.assertIn(".wav", text)
+        self.assertIn("errno 13", text)
+        self.assertNotIn(self.FILE_NAME, text)
+        self.assertNotIn(str(self.folder), text)
+
+
 class EmptyFileTests(unittest.TestCase):
     def setUp(self):
         self._folder = tempfile.TemporaryDirectory()

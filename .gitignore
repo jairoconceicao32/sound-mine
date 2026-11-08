@@ -7,6 +7,7 @@ ENV/
 # Arquivos de configuração locais
 claude.md
 CLAUDE.md
+.claude/
 arquivos.ini
 
 # Cache do Python

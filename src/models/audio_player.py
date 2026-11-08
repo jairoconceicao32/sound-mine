@@ -59,6 +59,12 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
                            rate, time_limit, av)
     except AudioLoadError:
         raise
+    except PermissionError as error:
+        logger.warning("Sem permissão para ler o arquivo de áudio (extensão %s, errno %s).",
+                       extension, error.errno)
+        raise AudioLoadError(
+            "Sem permissão para ler o arquivo, ou o arquivo está em uso por outro programa."
+        ) from None
     except Exception:
         logger.warning("Falha ao ler o arquivo de áudio: %s", path, exc_info=True)
         raise AudioLoadError(CORRUPTED_MESSAGE) from None
