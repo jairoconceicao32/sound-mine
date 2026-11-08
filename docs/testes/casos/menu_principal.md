@@ -1,0 +1,36 @@
+# CT01 — Menu principal
+
+## Título:
+Menu principal.
+
+## Descrição:
+Verificar se o menu principal do Sound Mine é apresentado corretamente e permite acessar as funcionalidades disponíveis no programa.
+
+## Pré-requisitos:
+- Ter o Sound Mine instalado.
+
+## Passos para a reprodução:
+1. Abrir o programa;
+2. Aguardar a inicialização;
+3. Verificar se as opções do menu principal são apresentadas;
+4. Navegar pelas opções utilizando as teclas de seta para cima e seta para baixo;
+5. Selecionar uma opção desejada;
+6. Ativar a opção utilizando a tecla Enter.
+
+## Comportamento esperado — caminho feliz:
+- O programa deve iniciar corretamente;
+- O menu principal deve ser apresentado com as opções disponíveis;
+- A navegação entre as opções deve funcionar corretamente utilizando as setas;
+- A opção selecionada deve ser anunciada corretamente pelo NVDA;
+- A tecla Enter deve ativar a opção selecionada;
+- As funcionalidades correspondentes às opções selecionadas devem ser acessadas corretamente.
+
+## Comportamento esperado — caminho não feliz:
+- Caso o menu principal não seja carregado, o programa deve apresentar uma mensagem de erro correspondente;
+- O programa não deve encerrar inesperadamente durante a navegação;
+- As opções não devem apresentar falhas de identificação ou seleção;
+- O NVDA não deve deixar de anunciar as opções disponíveis e a opção selecionada;
+- A ativação de uma opção não deve executar uma ação diferente daquela correspondente à seleção.
+
+## Observações:
+Validar a navegação pelo menu principal utilizando as setas e a ativação das opções com Enter. Verificar também se as opções são anunciadas corretamente pelo NVDA.
