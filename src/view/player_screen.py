@@ -67,8 +67,7 @@ class PlayerScreen(Screen):
                 self.manager.pop()
                 return True
             case Command.SPACE:
-                if not self._player.toggle():
-                    self.manager.speaker.speak("Pausado")
+                self.manager.speaker.speak("Reproduzindo" if self._player.toggle() else "Pausado")
             case Command.LEFT:
                 self._seek(self._player.position() - SEEK_SECONDS)
             case Command.RIGHT:
