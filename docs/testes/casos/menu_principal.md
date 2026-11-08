@@ -7,7 +7,8 @@ Menu principal.
 Verificar se o menu principal do Sound Mine é apresentado corretamente e permite acessar as funcionalidades disponíveis no programa.
 
 ## Pré-requisitos:
-- Ter o Sound Mine instalado.
+- Ter o Sound Mine instalado;
+- Ter o NVDA disponível para validação da acessibilidade.
 
 ## Passos para a reprodução:
 1. Abrir o programa;
@@ -32,5 +33,10 @@ Verificar se o menu principal do Sound Mine é apresentado corretamente e permit
 - O NVDA não deve deixar de anunciar as opções disponíveis e a opção selecionada;
 - A ativação de uma opção não deve executar uma ação diferente daquela correspondente à seleção.
 
+## Resultado da execução:
+Aguardando conclusão da validação de todos os comportamentos previstos.
+
 ## Observações:
-Validar a navegação pelo menu principal utilizando as setas e a ativação das opções com Enter. Verificar também se as opções são anunciadas corretamente pelo NVDA.
+Durante a investigação, foi identificado que o NVDA repete o anúncio da opção selecionada ao pressionar repetidamente determinadas letras, mesmo sem alteração na seleção.
+
+O mesmo comportamento foi observado em outros programas. Portanto, a ocorrência permanece em investigação e ainda não foi confirmada como uma falha específica do Sound Mine.

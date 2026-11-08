@@ -31,5 +31,10 @@ Verificar se o programa permite selecionar, abrir e carregar arquivos de áudio 
 - Arquivos que não sejam de áudio não devem ser apresentados como formatos disponíveis no filtro do seletor;
 - O programa não deve apresentar falhas ou encerrar inesperadamente durante uma tentativa de abertura inválida.
 
+## Resultado da execução:
+Aprovado.
+
 ## Observações:
-Validar a abertura dos formatos MP3, M4A, WAV e OGG, verificando também o comportamento do programa com arquivos inválidos e vazios.
+A funcionalidade de abertura de arquivos foi validada com sucesso.
+
+Durante a utilização do editor após o carregamento do arquivo, foi identificada uma ocorrência relacionada ao player, registrada separadamente no arquivo bugs_sound_mine.txt.
