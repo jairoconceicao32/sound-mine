@@ -163,7 +163,15 @@ Ao utilizar as setas do teclado, será possível visualizar e navegar pelas opç
 
 Cada funcionalidade deverá apresentar suas respectivas opções de edição.
 
-Ao sair do menu de edição com a tecla `Esc`, caso existam alterações não salvas, o programa deverá apresentar a confirmação **Sair do editor**, com as opções **Não** e **Sim**, navegável por letras. **Não** volta ao menu de edição e **Sim** sai sem salvar. Sem alterações não salvas, o programa volta diretamente ao menu principal.
+Ao fechar o editor com a tecla `Esc` ou com `Alt+F4`, caso existam alterações não salvas, o programa deverá apresentar a confirmação **Sair do editor**, com as opções:
+
+- **Salvar e sair:** salva as alterações e fecha o editor somente depois que o salvamento for concluído com sucesso. Se o salvamento for cancelado ou falhar, o editor continua aberto, com as alterações preservadas, e o usuário é informado.
+- **Sair sem salvar:** descarta as alterações e fecha o editor.
+- **Cancelar:** cancela o fechamento e volta ao editor, preservando as alterações.
+
+Pelo `Esc`, fechar o editor volta ao menu principal. Pelo `Alt+F4`, fecha o programa. Sem alterações não salvas, o editor fecha diretamente, sem confirmação.
+
+Todas as confirmações do programa apresentam as opções por extenso. As letras apenas selecionam a opção correspondente, sem executá-la; a resposta é dada com `Enter`. Os atalhos por letras do editor continuam executando as funcionalidades normalmente.
 
 #### Critérios de aceitabilidade
 
@@ -322,7 +330,7 @@ O usuário deverá conseguir acessar a opção Desfazer pelo menu de edição.
 
 Antes de executar a operação, o programa deverá apresentar um menu de confirmação com as opções **Sim** e **Não**.
 
-A confirmação deverá ser navegável por letras, seguindo o estilo de navegação do DOSVOX.
+A confirmação deverá apresentar as opções por extenso. As setas e as letras selecionam a opção, sem executá-la, e o `Enter` confirma a opção selecionada.
 
 O programa deverá apresentar uma caixa de diálogo sinalizando a confirmação da operação.
 
@@ -335,7 +343,7 @@ A funcionalidade poderá ser ampliada para permitir desfazer outras modificaçõ
 - O programa deverá permitir desfazer alterações realizadas durante a edição de arquivos de áudio válidos.
 - O arquivo deverá estar em um formato suportado pelo Sound Mine.
 - A opção **Desfazer** deverá apresentar um menu de confirmação.
-- O menu de confirmação deverá permitir selecionar Sim ou Não por letras.
+- O menu de confirmação deverá permitir selecionar Sim ou Não pelas setas ou por letras, sem que a letra execute a opção.
 - O programa deverá apresentar uma caixa de diálogo informando a operação.
 - Caso o usuário confirme a operação, o programa deverá recuperar a última versão salva do arquivo.
 - Caso o usuário selecione Não, a operação deverá ser cancelada.

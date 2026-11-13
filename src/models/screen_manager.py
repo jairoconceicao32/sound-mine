@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 
 import wx
 
@@ -38,6 +39,8 @@ class ScreenManager:
         self.version = version
         self.settings = settings
         self._stack: list[Screen] = []
+        self._close_guard: Callable[[Callable[[], None]], bool] | None = None
+        self._closing = False
         self._key_panel = NoFocusPanel(frame, style=wx.WANTS_CHARS)
         self._container = NoFocusPanel(self._key_panel)
         self._sizer = wx.BoxSizer(wx.VERTICAL)
@@ -88,16 +91,37 @@ class ScreenManager:
         if len(self._stack) <= 1:
             self.close()
             return
-        screen = self._stack.pop()
-        screen.on_deactivate()
-        self._sizer.Detach(screen)
-        screen.Destroy()
+        self._discard(self._stack.pop())
+        self._show(self._stack[-1])
+
+    def pop_through(self, screen: Screen) -> None:
+        if screen not in self._stack:
+            return
+        if self._stack[0] is screen:
+            self.close()
+            return
+        while True:
+            top = self._stack.pop()
+            self._discard(top)
+            if top is screen:
+                break
         self._show(self._stack[-1])
 
     def close(self) -> None:
         if self.current is not None:
             self.current.on_deactivate()
         wx.CallAfter(self._frame.Close)
+
+    def close_now(self) -> None:
+        self._closing = True
+        self.close()
+
+    def set_close_guard(self, guard: Callable[[Callable[[], None]], bool]) -> None:
+        self._close_guard = guard
+
+    def clear_close_guard(self, guard: Callable[[Callable[[], None]], bool]) -> None:
+        if self._close_guard is guard:
+            self._close_guard = None
 
     def show_help(self) -> None:
         screen = self.current
@@ -109,6 +133,11 @@ class ScreenManager:
         screen.on_deactivate()
         self.announcer.dialog("\n".join(lines), f"Ajuda - {screen.title}")
         self.focus_window()
+
+    def _discard(self, screen: Screen) -> None:
+        screen.on_deactivate()
+        self._sizer.Detach(screen)
+        screen.Destroy()
 
     def _show(self, screen: Screen) -> None:
         screen.Show()
@@ -123,7 +152,20 @@ class ScreenManager:
         target = self.current.focus_target() if self.current is not None else None
         (target or self._focus_sink).SetFocus()
 
+    def _guard_vetoes(self, event: wx.CloseEvent) -> bool:
+        if self._closing or self._close_guard is None or not event.CanVeto():
+            return False
+        try:
+            return bool(self._close_guard(self.close_now))
+        except Exception:
+            logger.exception("Falha ao verificar o fechamento do programa.")
+            return False
+
     def _on_close(self, event: wx.CloseEvent) -> None:
+        if self._guard_vetoes(event):
+            event.Veto()
+            return
+        self._closing = True
         try:
             if self.current is not None:
                 self.current.on_deactivate()

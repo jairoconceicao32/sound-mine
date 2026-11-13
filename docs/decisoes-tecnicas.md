@@ -60,10 +60,10 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 | Setas para cima e para baixo | Navegam entre as opções, com o som de navegação. Não há navegação circular: nas pontas, toca o som de borda (`border`), como no DOSVOX, sem fala. Vale para todos os menus, inclusive a lista do editor. |
 | Enter | Executa a opção selecionada. |
 | Letra | Nos menus comuns, apenas seleciona a opção (`LetterMode.SELECT`). No editor, executa a opção diretamente (`LetterMode.ACTIVATE`), e a lista de opções só aparece pelas setas (DT07). |
-| Esc | Volta à tela anterior. No menu principal, fecha o programa sem confirmação. |
+| Esc | Volta à tela anterior. No menu principal, fecha o programa sem confirmação. No editor com alterações não salvas, abre a confirmação de saída (DT07). |
 | F1 | Disponível apenas nos menus que declaram `has_help=True` (menus do editor). |
 | F2, F3 e F4 | Controles do player (ver DT07). Nas outras telas, não fazem nada. |
-| Alt, Aplicativos e Alt+Espaço | Bloqueadas, para não abrir o menu do sistema do Windows. Alt+F4 continua fechando o programa. |
+| Alt, Aplicativos e Alt+Espaço | Bloqueadas, para não abrir o menu do sistema do Windows. Alt+F4 continua fechando o programa; com o editor aberto e alterações não salvas, abre antes a confirmação de saída (DT07). |
 | Tab e Shift+Tab | Nas configurações, passam pelos campos. Nos menus, não fazem nada. |
 | Ctrl+Tab e Ctrl+Shift+Tab | Nas configurações, trocam de guia. Nos menus, não fazem nada. |
 | Setas para os lados, Home, End, Page Up, Page Down, Backspace e Espaço | Usadas pelos controles nativos das configurações. Nos menus, não fazem nada. No player, Espaço, setas para os lados, Home e End controlam a reprodução (DT07). |
@@ -151,7 +151,8 @@ O editor (RN02, RN02.1 a RN02.4 e RN03) foi desenvolvido primeiro como um protó
 | Remover | A - Antes do cursor, D - Depois do cursor, E - Entre o cursor e o ponto memorizado |
 | Misturar | A - Adição de áudio, F - Fundo sonoro |
 | Adição de áudio e Fundo sonoro | I - No início, C - No cursor, F - No final |
-| Desfazer alterações | N - Não, S - Sim |
+| Desfazer alterações | Sim, Não (confirmação sem letras de ativação, ver DT09) |
+| Sair do editor | Salvar e sair, Sair sem salvar, Cancelar (ver DT09) |
 
 **Navegação no estilo DOSVOX:**
 
@@ -164,11 +165,18 @@ O editor (RN02, RN02.1 a RN02.4 e RN03) foi desenvolvido primeiro como um protó
 - A opção **Desativar dicas do programa** não altera as falas do editor, porque elas não contêm dicas de navegação. As explicações das teclas ficam no F1.
 - A janela mostra o arquivo e a posição do cursor (por exemplo, "musica.mp3 - cursor em 0:42 de 3:00"), atualizados depois de cada operação.
 
-- Na confirmação do Desfazer, **Não** é a primeira opção, para que um Enter acidental não recupere a versão salva.
+- A confirmação do Desfazer segue o padrão da DT09, com as opções **Sim** e **Não**, nessa ordem. Ela abre com **Não** selecionado, para que um Enter acidental não recupere a versão salva.
 - Sim exibe a caixa de diálogo de conclusão e volta ao menu de edição. Não volta ao menu de edição e fala "Operação cancelada.".
 - Esc volta ao menu anterior. No menu de edição, volta ao menu principal.
-- **Confirmação de saída:** se houver alterações não salvas, o Esc no menu de edição abre a confirmação **Sair do editor**: "Há alterações não salvas. Deseja sair sem salvar? N para não, S para sim.". **Não** é a primeira opção e volta ao editor; **Sim** sai sem salvar. Esc na confirmação também volta ao editor. Sem alterações (ou logo depois de salvar), o Esc sai direto.
-- A confirmação vale só para o Esc. Fechar a janela (Alt+F4) ainda sai sem perguntar.
+- **Confirmação de saída (BUG05):** se houver alterações não salvas, o Esc no menu de edição e o Alt+F4 abrem a mesma confirmação **Sair do editor**: "Sair do editor. Há alterações não salvas. O que deseja fazer?". Ela segue o padrão da DT09 e tem três opções, nesta ordem:
+  - **Salvar e sair** (selecionada ao abrir): abre a janela de salvar. Só sai depois de salvar com sucesso. Se a janela for cancelada ou a gravação falhar, volta ao editor, mantém as alterações e fala "O arquivo não foi salvo. O editor continua aberto.".
+  - **Sair sem salvar:** descarta as alterações e sai.
+  - **Cancelar:** volta ao editor e fala "Operação cancelada.". O Esc na confirmação faz o mesmo.
+- Sair, pelo Esc, volta ao menu principal; pelo Alt+F4, fecha o programa. A confirmação e o editor são fechados de uma vez (`ScreenManager.pop_through`), sem reativar o editor no caminho.
+- Sem alterações (ou logo depois de salvar), o Esc e o Alt+F4 saem direto, sem perguntar.
+- Ao abrir a confirmação, a reprodução é pausada. Se o Alt+F4 for usado com o player aberto e a saída for cancelada, o player volta a tocar, como acontece sempre que ele é reaberto.
+- **Uma regra só para os dois caminhos:** a decisão fica em `EditorExit` (`src/controllers/editor_exit.py`), que recebe o destino da saída. O Esc chama `EditorExit.request` pelo `on_back` do editor. O Alt+F4 chega pelo `EVT_CLOSE`: o `ScreenManager` consulta a trava registrada pelo editor (`set_close_guard`) e, se ela pedir confirmação, veta o fechamento (`event.Veto()`). O `ScreenManager` não conhece o player. A trava é retirada quando o editor é destruído. Se o Alt+F4 for usado com a confirmação já aberta, a pergunta é repetida, sem abrir outra confirmação, e o destino passa a ser fechar o programa.
+- **Limitação:** quando o Windows está sendo desligado ou a sessão está sendo encerrada, o fechamento pode não ser vetável (`CanVeto()` falso). Nesse caso, o programa fecha sem perguntar.
 
 **Player:** a opção T - Tocar arquivo abre a tela do player e começa a tocar. Enquanto o player está aberto, o menu de edição fica bloqueado: as letras, o Enter e as setas para cima e para baixo não fazem nada.
 
@@ -282,3 +290,19 @@ O player usa o **PyAV** (FFmpeg) para ler o arquivo e a **sounddevice** para toc
 **Player simulado:** o `PlayerState`, usado no início do desenvolvimento do editor, foi retirado. Hoje só existe o `AudioPlayer`.
 
 **Arquivos de teste:** `python tests\gerar_audios.py` cria em `tests\audios` um arquivo de 30 segundos para cada formato aceito e arquivos inválidos para testar as recusas. O tom fica mais agudo do começo para o fim, e há um bipe a cada 5 segundos.
+
+## DT09 — Confirmações
+
+Padrão de todas as confirmações do programa (BUG05). Novas confirmações devem segui-lo.
+
+- Uma confirmação é uma tela própria (`ConfirmScreen`, em `src/view/confirm_screen.py`), montada a partir do modelo `Confirmation` (`src/controllers/confirmation.py`). Ela não é um menu do editor e não usa `MenuItem`.
+- As opções são escritas por extenso, sem letra na frente: "Sim", não "S - Sim". Perguntas de sim ou não usam `yes_no`, que monta **Sim** e **Não**, nessa ordem. Confirmações com outras respostas listam as próprias opções (por exemplo, a saída do editor, DT07).
+- Ao abrir, o programa fala a pergunta e depois a opção selecionada, sem interromper a pergunta. A tela mostra a pergunta e a opção atual com a posição (por exemplo, "Sim (1 de 2)"). A opção selecionada ao abrir é a mais segura para o caso (`initial_index`).
+- Teclas:
+  - Setas para cima e para baixo: navegam entre as opções, com o som de navegação. Não há navegação circular; nas pontas, toca o som de borda.
+  - Letras: apenas selecionam a opção que começa com a letra e falam a opção. **Nunca executam a ação.** Repetir a letra passa para a próxima opção com a mesma inicial (por exemplo, S alterna entre "Salvar e sair" e "Sair sem salvar"). Letras sem opção correspondente não fazem nada.
+  - Enter: executa a opção selecionada. É a única forma de responder.
+  - Esc: cancela (`on_cancel`) e volta à tela anterior.
+  - F1: ajuda com a pergunta, as opções e as teclas.
+- Um segundo Enter enquanto a resposta está sendo processada é ignorado. Se a ação falhar com um erro inesperado, o programa mostra a mensagem de erro e a confirmação continua respondendo.
+- A confirmação de sobrescrita ao salvar é a caixa nativa do Windows (DT07) e não segue este padrão. A troca dela por uma `ConfirmScreen` fica pendente.

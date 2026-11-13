@@ -3,11 +3,14 @@ from collections.abc import Callable
 import wx
 
 from src.controllers.background_form import build_background_form
+from src.controllers.confirmation import Confirmation, yes_no
+from src.controllers.editor_exit import CANCELED_MESSAGE, EditorExit
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
 from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
 from src.models.audio_save import AudioSaveError
+from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.file_dialog import choose_audio_file, choose_save_file
 from src.view.player_screen import PlayerScreen
@@ -101,44 +104,25 @@ def build_editor_menu(manager, player) -> Menu:
         manager.push(SettingsScreen(manager.parent, manager, form))
 
     def save() -> None:
-        settings = manager.settings
-        file_format = settings.format
-        requested_rate = int(settings.sample_rate)
-        stem = player.path.stem
-        if not stem.endswith(SAVED_SUFFIX):
-            stem += SAVED_SUFFIX
-        name = f"{stem}.{file_format}"
-        path = choose_save_file(manager.parent.GetTopLevelParent(), player.path.parent, name, file_format)
-        if path is None:
-            return
-        manager.speaker.speak("Salvando o arquivo.")
-        try:
-            saved_rate = player.save(path, file_format, settings.channel, requested_rate)
-        except AudioSaveError as error:
-            manager.announcer.error(str(error))
-            return
-        message = f"Arquivo salvo: {path.name}."
-        if saved_rate != requested_rate:
-            message += (f" A taxa de amostragem foi de {saved_rate} Hz, a maior aceita pelo formato "
-                        f"{file_format.upper()}.")
-        done(message)
+        save_audio_file(manager, player)
 
     def open_undo() -> None:
         if not player.has_changes:
             fail("não há alterações para desfazer.")
             return
-        manager.push(EditorScreen(manager.parent, manager, undo_menu, player))
+        manager.push(ConfirmScreen(manager.parent, manager, yes_no(
+            title="Desfazer alterações",
+            question="Desfazer alterações. Deseja recuperar a última versão salva do arquivo?",
+            on_yes=confirm_undo,
+            on_no=lambda: cancel_confirmation(manager),
+            on_cancel=lambda: cancel_confirmation(manager),
+            default_yes=False,
+        )))
 
     def confirm_undo() -> None:
         player.undo()
         done("Última versão salva recuperada.")
         wx.CallAfter(manager.pop)
-
-    def cancel_undo() -> None:
-        def back() -> None:
-            manager.pop()
-            manager.speaker.speak("Operação cancelada.")
-        wx.CallAfter(back)
 
     remove_menu = _editor_menu("Remover", [
         MenuItem("A", "Antes do cursor", remove_before),
@@ -151,15 +135,6 @@ def build_editor_menu(manager, player) -> Menu:
         MenuItem("A", "Adição de áudio", open_menu(add_menu)),
         MenuItem("F", "Fundo sonoro", open_menu(background_menu)),
     ])
-    undo_menu = _editor_menu(
-        "Desfazer alterações",
-        [
-            MenuItem("N", "Não", cancel_undo),
-            MenuItem("S", "Sim", confirm_undo),
-        ],
-        intro="Desfazer alterações. Deseja recuperar a última versão salva do arquivo? N para não, S para sim.",
-    )
-
     return _editor_menu(
         "Menu de edição",
         [
@@ -173,40 +148,64 @@ def build_editor_menu(manager, player) -> Menu:
     )
 
 
-def build_exit_menu(manager) -> Menu:
-    def stay() -> None:
-        wx.CallAfter(manager.pop)
+def save_audio_file(manager, player) -> bool:
+    settings = manager.settings
+    file_format = settings.format
+    requested_rate = int(settings.sample_rate)
+    stem = player.path.stem
+    if not stem.endswith(SAVED_SUFFIX):
+        stem += SAVED_SUFFIX
+    name = f"{stem}.{file_format}"
+    path = choose_save_file(manager.parent.GetTopLevelParent(), player.path.parent, name, file_format)
+    if path is None:
+        return False
+    manager.speaker.speak("Salvando o arquivo.")
+    try:
+        saved_rate = player.save(path, file_format, settings.channel, requested_rate)
+    except AudioSaveError as error:
+        manager.announcer.error(str(error))
+        return False
+    message = f"Arquivo salvo: {path.name}."
+    if saved_rate != requested_rate:
+        message += (f" A taxa de amostragem foi de {saved_rate} Hz, a maior aceita pelo formato "
+                    f"{file_format.upper()}.")
+    manager.announcer.done(message)
+    return True
 
-    def leave() -> None:
-        def back() -> None:
-            manager.pop()
-            manager.pop()
-        wx.CallAfter(back)
 
-    return _editor_menu(
-        "Sair do editor",
-        [
-            MenuItem("N", "Não", stay),
-            MenuItem("S", "Sim", leave),
-        ],
-        intro="Sair do editor. Há alterações não salvas. Deseja sair sem salvar? N para não, S para sim.",
-    )
+def cancel_confirmation(manager, message: str = CANCELED_MESSAGE) -> None:
+    def back() -> None:
+        manager.pop()
+        manager.speaker.speak(message)
+    wx.CallAfter(back)
 
 
 def open_editor(manager, player, replace: bool = False) -> None:
-    exit_menu = build_exit_menu(manager)
+    def show(confirmation: Confirmation) -> ConfirmScreen:
+        player.pause()
+        confirm = ConfirmScreen(manager.parent, manager, confirmation)
+        manager.push(confirm)
+        return confirm
 
-    def confirm_exit() -> bool:
-        if not player.has_changes:
-            return False
-        manager.push(EditorScreen(manager.parent, manager, exit_menu, player))
-        return True
+    editor_exit = EditorExit(
+        has_changes=lambda: player.has_changes,
+        save=lambda: save_audio_file(manager, player),
+        show=show,
+        back=lambda message: cancel_confirmation(manager, message),
+        schedule=wx.CallAfter,
+    )
+
+    def back_to_menu() -> None:
+        manager.pop_through(screen)
 
     screen = EditorScreen(manager.parent, manager, build_editor_menu(manager, player), player,
-                          on_back=confirm_exit)
+                          on_back=lambda: editor_exit.request(back_to_menu))
+    close_guard = editor_exit.request
+    manager.set_close_guard(close_guard)
 
     def on_destroy(event: wx.WindowDestroyEvent) -> None:
         if event.GetEventObject() is screen:
+            manager.clear_close_guard(close_guard)
             player.close()
         event.Skip()
 
