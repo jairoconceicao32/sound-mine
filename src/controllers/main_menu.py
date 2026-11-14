@@ -13,7 +13,7 @@ def build_main_menu(manager) -> Menu:
         if path is None:
             return
         try:
-            player = AudioPlayer(path, manager.settings.memory_mb)
+            player = AudioPlayer(path, manager.settings.memory_mb, manager.outputs)
         except AudioLoadError as error:
             manager.announcer.error(str(error), OPEN_FILE)
             return

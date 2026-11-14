@@ -98,7 +98,7 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 
 | Tipo | Uso | Exibição |
 |---|---|---|
-| `info` | Avisos comuns | Apenas falado |
+| `info` | Avisos comuns, como a troca de saída de som (DT10) | Apenas falado |
 | `error` | Erros | Caixa de diálogo com o título "Erro ao *operação*" |
 | `done` | Operação de edição concluída (por exemplo, arquivo salvo) | Caixa de diálogo |
 
@@ -120,6 +120,7 @@ Erros em ações de menu são registrados no console e anunciados ao usuário, s
 | Salvar, inclusive pela confirmação de saída do editor | Erro ao salvar |
 | Erro inesperado em qualquer opção de menu, formulário ou confirmação | Erro ao executar a opção |
 | Fala indisponível na abertura do programa | Erro ao iniciar a fala |
+| Tocar sem conseguir abrir nenhuma saída de som (DT10) | Erro ao tocar arquivo |
 
 - Os textos das mensagens não mudaram nesta etapa. A reescrita, com operação, motivo e ação sugerida, é a etapa 4.
 
@@ -134,6 +135,8 @@ Erros em ações de menu são registrados no console e anunciados ao usuário, s
 | av (PyAV) | 19.0.2 (FFmpeg 9.0.2) | Leitura dos arquivos de áudio no player, em todos os formatos previstos |
 
 O numpy é instalado junto com a soundfile e é usado para guardar as amostras de áudio.
+
+A troca de dispositivo (DT10) usa funções internas da sounddevice (`_terminate`, `_initialize`, `_libname` e `_ffi`). Antes de atualizar a sounddevice, é preciso conferir se elas continuam existindo.
 
 Instalação: `python -m pip install -r requirements.txt`
 
@@ -283,7 +286,7 @@ O player usa o **PyAV** (FFmpeg) para ler o arquivo e a **sounddevice** para toc
 - O arquivo inteiro é decodificado para a memória como amostras (`numpy`, float32, estéreo, na taxa da placa de som). Ir para o começo, para o fim ou avançar 5 segundos é só mudar a posição, com precisão, em qualquer formato.
 - As mesmas amostras servirão às operações de edição (remover e misturar).
 - O FFmpeg do pacote também grava AAC (M4A) e MP3, usados pelo Salvar (DT07).
-- A saída de áudio é aberta como nos sons da interface: WASAPI na taxa da própria placa de som, com a saída padrão do Windows como alternativa. O PyAV converte o arquivo para essa taxa ao carregar. A primeira versão deixava a conversão para o WASAPI (`auto_convert`), e o som não saía no headset de teste (48000 Hz) com arquivos de 44100 Hz.
+- A saída de áudio é controlada pelo coordenador de saídas (DT10): WASAPI na taxa da própria placa de som, com DirectSound e a saída padrão do Windows como alternativas. O PyAV converte o arquivo para essa taxa ao carregar. A primeira versão deixava a conversão para o WASAPI (`auto_convert`), e o som não saía no headset de teste (48000 Hz) com arquivos de 44100 Hz.
 
 **Alternativas avaliadas e descartadas:** soundfile (não lê M4A e trava ao gravar OGG Vorbis longo de uma vez, com estouro de pilha), python-vlc e python-mpv (exigem programas ou DLLs externos e não entregam as amostras para a edição), FFmpeg executável (exige distribuir o `ffmpeg.exe` e controlar um processo externo), Media Foundation do Windows (não lê OGG sem extensões da loja), pygame, pyminiaudio, pydub, simpleaudio e playsound.
 
@@ -325,3 +328,73 @@ Padrão de todas as confirmações do programa (BUG05). Novas confirmações dev
   - F1: ajuda com a pergunta, as opções e as teclas.
 - Um segundo Enter enquanto a resposta está sendo processada é ignorado. Se a ação falhar com um erro inesperado, o programa mostra a mensagem de erro e a confirmação continua respondendo.
 - A confirmação de sobrescrita ao salvar é a caixa nativa do Windows (DT07) e não segue este padrão. A troca dela por uma `ConfirmScreen` fica pendente.
+
+## DT10 — Saída de áudio e troca de dispositivo
+
+Correção do P3 do BUG04 (falha silenciosa ao tocar), junto com a troca automática de dispositivo de som. Código em `src/models/audio_output.py`.
+
+**Comportamento comprovado** (diagnóstico de 13/11/2026, com o headset desconectado e reconectado, e observação do NVDA):
+
+- Ao desconectar, o stream WASAPI **para sozinho**. No mesmo instante, o aviso de estado do WASAPI informa erro com o código `0x88890004` (`AUDCLNT_E_DEVICE_INVALIDATED`), o `finished_callback` é chamado e `active` passa a falso.
+- O PortAudio lê a lista de dispositivos só ao iniciar. `PaWasapi_UpdateDeviceList` **não funciona** na compilação do PortAudio da sounddevice 0.5.2: retorna `paInternalError` (-9986). A única forma de atualizar a lista é reiniciar o PortAudio (`sounddevice._terminate()` e `_initialize()`). Isso leva cerca de 20 ms e fecha **todas** as saídas abertas.
+- Os índices dos dispositivos mudam depois de reiniciar. Por isso, o dispositivo é identificado pelo **nome completo** no WASAPI.
+- A consulta às saídas do Windows (`winmm`) mostra na hora a remoção, a reconexão e a mudança do dispositivo padrão. Os nomes vêm cortados em 31 caracteres e são comparados como prefixo.
+- O NVDA segue o dispositivo padrão do Windows e passa a falar no novo dispositivo imediatamente.
+
+**Arquitetura:**
+
+- `OutputCoordinator` é o único dono das saídas de áudio. O player e os sons da interface se registram nele e só informam a taxa de que precisam (`prepare_output`) e o callback (`audio_callback`). Eles não abrem nem fecham streams.
+- `PortAudioBackend` isola o acesso ao PortAudio e ao Windows, para os testes usarem um substituto.
+- Cada saída aberta (`PortAudioOutput`) registra o aviso de estado do WASAPI e o `finished_callback`. O aviso usa `PaWasapi_SetStreamStateHandler`, chamado por `ctypes`, porque a sounddevice não o expõe. Esses avisos chegam por threads do PortAudio e **só marcam um sinal** (`threading.Event`). Toda reação acontece na thread do wx.
+- O `ScreenManager` verifica as saídas a cada 500 ms (`OUTPUT_CHECK_MS`), com um timer do wx. Ao fechar o programa, o timer para antes de as saídas serem liberadas.
+
+**Detecção:**
+
+- Desconexão: aviso de erro do WASAPI, `finished_callback` ou `active` falso. Nas saídas DirectSound e MME, que não têm o aviso do WASAPI, também a parada do callback por duas verificações seguidas.
+- Reconexão e troca do padrão: comparação da lista de saídas do Windows entre duas verificações.
+
+**Regras de troca:**
+
+| Situação | Ação |
+|---|---|
+| Falha da saída atual | Troca imediata para o preferencial, se estiver disponível, ou para o padrão atual do Windows. O preferencial não muda. |
+| O padrão do Windows muda, o padrão anterior continua conectado e o novo já estava conectado (troca deliberada) | O novo padrão vira o preferencial, e o programa troca para ele. |
+| O preferencial reaparece | Volta a ele depois de 2 s estável (`STABLE_SECONDS`), com no mínimo 5 s desde a última troca (`MIN_SWITCH_SECONDS`). |
+| Nenhuma saída disponível | Novas tentativas com espera crescente: 2, 4, 8, 16 e 30 s (`RETRY_SECONDS`). |
+
+- O preferencial é o padrão do WASAPI ao abrir o programa. Ele só muda com uma troca deliberada do padrão no Windows.
+- Cada troca fecha as saídas do player e dos sons da interface, reinicia o PortAudio e reabre as duas no destino.
+
+**Estado do player:** a posição e a intenção de tocar ficam no `AudioPlayer`, e não no stream. A troca não chama `play()` nem `pause()`: tocando continua tocando da mesma posição, e pausado continua pausado. Sem nenhuma saída, a intenção e a posição ficam guardadas, e o player volta exatamente a esse estado quando uma saída aparecer. Só se perde o áudio que já estava no buffer do dispositivo no momento da desconexão.
+
+**Taxa de amostragem:**
+
+- O player continua na taxa em que o arquivo foi carregado. Se o novo dispositivo tiver a mesma taxa, a saída é WASAPI. Se a taxa for diferente, o player abre pelo DirectSound nessa taxa, e o Windows faz a conversão. O áudio e as edições em memória não são tocados.
+- Os sons da interface são recarregados na taxa do novo dispositivo.
+- A conversão automática do WASAPI (`auto_convert`) continua descartada (DT08).
+- Na máquina de teste, todas as saídas WASAPI usam 48000 Hz.
+
+**P3:** ao tocar (Espaço ou entrada no player), o programa confere a saída e, se ela tiver parado, tenta recuperar na hora.
+
+- Recuperou: toca normalmente.
+- Não há nenhum dispositivo: a intenção de tocar fica guardada, a tela mostra "Aguardando saída de som" e o Espaço fala "Reproduzindo. Aguardando saída de som".
+- Há dispositivos, mas nenhuma saída abre: caixa "Erro ao tocar arquivo" com "Não foi possível tocar o arquivo. Verifique se o dispositivo de som está conectado e ativado." (`PlaybackError`), e o player fica pausado.
+- O programa nunca fala "Reproduzindo" sem som e sem avisar.
+
+**Mensagens:** faladas sem interromper, 300 ms depois da troca (`OUTPUT_ANNOUNCE_MS`), e escritas na linha de estado do editor e do player. Os eventos automáticos não abrem caixa de diálogo.
+
+| Evento | Mensagem |
+|---|---|
+| Troca por desconexão, troca deliberada ou saída recuperada | Saída de som: *nome do dispositivo*. |
+| Volta ao preferencial | Saída de som de volta: *nome*. |
+| Nenhuma saída | Nenhuma saída de som disponível. |
+
+O nome do dispositivo é falado ao usuário, mas não é gravado no log.
+
+**Riscos e limitações:**
+
+- Usa funções internas da sounddevice (`_terminate`, `_initialize`, `_libname` e `_ffi`) e uma função do PortAudio por `ctypes`. Por isso a versão da sounddevice fica fixada (DT06). Tudo fica dentro de `try`: se falhar, a saída fica indisponível e o programa avisa, sem fechar.
+- A volta ao preferencial corta as saídas por cerca de 40 ms, uma vez por volta.
+- Dois aparelhos com o mesmo nome não podem ser diferenciados.
+- O caminho pelo DirectSound (taxa diferente) e os aparelhos Bluetooth não foram testados com hardware real.
+- Abrir um arquivo sem nenhuma saída disponível continua mostrando "Erro ao abrir arquivo".

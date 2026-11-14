@@ -18,7 +18,9 @@ class EditorScreen(MenuScreen):
         self._menu_open = False
         self._ask_timer: wx.CallLater | None = None
         self._status = wx.StaticText(self, label="")
+        self._output = wx.StaticText(self, label="")
         self.GetSizer().Insert(0, self._status, 0, wx.ALL, 10)
+        self.GetSizer().Insert(1, self._output, 0, wx.LEFT | wx.RIGHT, 10)
 
     def on_activate(self) -> None:
         self._stop_message()
@@ -105,9 +107,14 @@ class EditorScreen(MenuScreen):
         if self.manager.current is self and not self._menu_open:
             self.manager.speaker.speak(self._navigator.menu.opening_message, interrupt=False)
 
+    def output_changed(self) -> None:
+        self._update_status()
+
     def _update_status(self) -> None:
         player = self._player
         text = f"{player.file_name} - cursor em {clock_time(player.position())} de {clock_time(player.duration)}"
-        if self._status.GetLabel() != text:
+        output = self.manager.output_status
+        if self._status.GetLabel() != text or self._output.GetLabel() != output:
             self._status.SetLabel(text)
+            self._output.SetLabel(output)
             self.Layout()

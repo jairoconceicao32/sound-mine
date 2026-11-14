@@ -13,30 +13,35 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 MAX_WAIT_SECONDS = 3.0
 SILENCE_THRESHOLD = 0.01
 CHANNELS = 2
-FALLBACK_RATE = 44100
 
 
 class InterfaceSounds:
-    def __init__(self, folder: Path = SOUNDS_DIR) -> None:
+    def __init__(self, folder: Path = SOUNDS_DIR, outputs=None) -> None:
+        self._folder = folder
         self._sounds: dict[str, np.ndarray] = {}
         self._lock = threading.Lock()
         self._buffer: np.ndarray | None = None
         self._position = 0
-        self._stream = None
+        self._rate = 0
+        self._outputs = outputs
         self.enabled = True
         try:
-            import sounddevice
             import soundfile
+            self._soundfile = soundfile
         except Exception:
             logger.exception("Não foi possível iniciar os sons de interface.")
-            return
-        self._stream, rate = self._open_stream(sounddevice)
-        if self._stream is None:
-            return
-        for name in SOUND_NAMES:
-            sound = self._load(soundfile, folder / f"{name}.ogg", rate)
-            if sound is not None:
-                self._sounds[name] = sound
+            self._soundfile = None
+        if outputs is not None:
+            outputs.register(self)
+
+    @property
+    def has_output(self) -> bool:
+        return self._outputs is not None and self._outputs.has_output(self)
+
+    def prepare_output(self, device) -> int:
+        if device.rate != self._rate:
+            self._load_all(device.rate)
+        return device.rate
 
     def play(self, name: str) -> None:
         sound = self._sounds.get(name)
@@ -48,9 +53,9 @@ class InterfaceSounds:
 
     def duration_ms(self, name: str) -> int:
         sound = self._sounds.get(name)
-        if sound is None or self._stream is None:
+        if sound is None or not self._rate:
             return 0
-        return round(len(sound) / self._stream.samplerate * 1000)
+        return round(len(sound) / self._rate * 1000)
 
     def stop(self) -> None:
         with self._lock:
@@ -58,7 +63,7 @@ class InterfaceSounds:
             self._position = 0
 
     def play_and_wait(self, name: str) -> None:
-        if name not in self._sounds or not self.enabled:
+        if name not in self._sounds or not self.enabled or not self.has_output:
             return
         self.play(name)
         deadline = time.monotonic() + MAX_WAIT_SECONDS
@@ -69,16 +74,23 @@ class InterfaceSounds:
             time.sleep(0.02)
 
     def close(self) -> None:
-        if self._stream is None:
-            return
-        try:
-            self._stream.stop()
-            self._stream.close()
-        except Exception:
-            logger.exception("Falha ao fechar a saída de áudio.")
-        self._stream = None
+        if self._outputs is not None:
+            self._outputs.unregister(self)
 
-    def _callback(self, outdata, frames, time_info, status) -> None:
+    def _load_all(self, rate: int) -> None:
+        sounds = {}
+        if self._soundfile is not None:
+            for name in SOUND_NAMES:
+                sound = self._load(self._soundfile, self._folder / f"{name}.ogg", rate)
+                if sound is not None:
+                    sounds[name] = sound
+        with self._lock:
+            self._sounds = sounds
+            self._buffer = None
+            self._position = 0
+        self._rate = rate
+
+    def audio_callback(self, outdata, frames, time_info, status) -> None:
         with self._lock:
             buffer = self._buffer
             if buffer is None:
@@ -90,43 +102,6 @@ class InterfaceSounds:
                 self._buffer = None
         outdata[:len(chunk)] = chunk
         outdata[len(chunk):] = 0
-
-    def _open_stream(self, sounddevice):
-        for device, rate, extra in self._candidates(sounddevice):
-            try:
-                stream = sounddevice.OutputStream(
-                    device=device,
-                    samplerate=rate,
-                    channels=CHANNELS,
-                    dtype="float32",
-                    latency="low",
-                    extra_settings=extra,
-                    callback=self._callback,
-                )
-                stream.start()
-                return stream, rate
-            except Exception:
-                logger.warning("Saída de áudio indisponível: %r", device, exc_info=True)
-        logger.error("Nenhuma saída de áudio disponível para os sons de interface.")
-        return None, 0
-
-    @staticmethod
-    def _candidates(sounddevice) -> list[tuple]:
-        candidates = []
-        try:
-            for api in sounddevice.query_hostapis():
-                device = api["default_output_device"]
-                if "WASAPI" in api["name"] and device >= 0:
-                    rate = int(sounddevice.query_devices(device)["default_samplerate"])
-                    candidates.append((device, rate, sounddevice.WasapiSettings()))
-        except Exception:
-            logger.warning("Não foi possível consultar o WASAPI.", exc_info=True)
-        try:
-            rate = int(sounddevice.query_devices(kind="output")["default_samplerate"])
-        except Exception:
-            rate = FALLBACK_RATE
-        candidates.append((None, rate, None))
-        return candidates
 
     @classmethod
     def _load(cls, soundfile, path: Path, rate: int) -> np.ndarray | None:

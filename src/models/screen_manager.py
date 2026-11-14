@@ -12,6 +12,9 @@ from src.view.speaker import Speaker
 
 logger = logging.getLogger(__name__)
 
+OUTPUT_CHECK_MS = 500
+OUTPUT_ANNOUNCE_MS = 300
+
 _IGNORED_COMMANDS = {
     Command.BLOCKED,
     Command.NEXT_FIELD,
@@ -31,13 +34,15 @@ _IGNORED_COMMANDS = {
 
 class ScreenManager:
     def __init__(self, frame: wx.Frame, announcer: Announcer, speaker: Speaker,
-                 sounds: InterfaceSounds, version: str, settings: Settings) -> None:
+                 sounds: InterfaceSounds, version: str, settings: Settings, outputs=None) -> None:
         self._frame = frame
         self.announcer = announcer
         self.speaker = speaker
         self.sounds = sounds
         self.version = version
         self.settings = settings
+        self.outputs = outputs
+        self.output_status = outputs.status_text() if outputs is not None else ""
         self._stack: list[Screen] = []
         self._close_guard: Callable[[Callable[[], None]], bool] | None = None
         self._closing = False
@@ -56,6 +61,12 @@ class ScreenManager:
         frame.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
         frame.Bind(wx.EVT_ACTIVATE, self._on_activate_window)
         frame.Bind(wx.EVT_CLOSE, self._on_close)
+        self._output_timer: wx.Timer | None = None
+        if outputs is not None:
+            outputs.set_listener(self._on_output_changed)
+            self._output_timer = wx.Timer(frame)
+            frame.Bind(wx.EVT_TIMER, self._on_output_timer, self._output_timer)
+            self._output_timer.Start(OUTPUT_CHECK_MS)
 
     @property
     def parent(self) -> wx.Window:
@@ -161,17 +172,38 @@ class ScreenManager:
             logger.exception("Falha ao verificar o fechamento do programa.")
             return False
 
+    def _on_output_timer(self, event: wx.TimerEvent) -> None:
+        try:
+            self.outputs.check()
+        except Exception:
+            logger.exception("Falha ao verificar a saída de áudio.")
+
+    def _on_output_changed(self, message: str) -> None:
+        self.output_status = message
+        wx.CallLater(OUTPUT_ANNOUNCE_MS, self._announce_output, message)
+        if self.current is not None:
+            self.current.output_changed()
+
+    def _announce_output(self, message: str) -> None:
+        if self._closing or not self._frame or self._frame.IsBeingDeleted():
+            return
+        self.speaker.speak(message, interrupt=False)
+
     def _on_close(self, event: wx.CloseEvent) -> None:
         if self._guard_vetoes(event):
             event.Veto()
             return
         self._closing = True
+        if self._output_timer is not None:
+            self._output_timer.Stop()
         try:
             if self.current is not None:
                 self.current.on_deactivate()
             self._frame.Hide()
             self.sounds.play_and_wait("close")
             self.sounds.close()
+            if self.outputs is not None:
+                self.outputs.close()
         except Exception:
             logger.exception("Falha ao encerrar o programa.")
         finally:

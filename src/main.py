@@ -3,6 +3,7 @@ import logging
 import wx
 
 from src.controllers.main_menu import build_main_menu
+from src.models.audio_output import OutputCoordinator
 from src.models.errors import START_SPEECH
 from src.models.screen_manager import ScreenManager
 from src.models.settings import Settings
@@ -19,9 +20,10 @@ def main(version: str):
     app = wx.App(False)
     frame = wx.Frame(None, title=version, size=(500, 400))
     speaker = Speaker()
-    sounds = InterfaceSounds()
+    outputs = OutputCoordinator()
+    sounds = InterfaceSounds(outputs=outputs)
     announcer = Announcer(frame, speaker, version)
-    manager = ScreenManager(frame, announcer, speaker, sounds, version, Settings())
+    manager = ScreenManager(frame, announcer, speaker, sounds, version, Settings(), outputs)
 
     frame.Centre()
     frame.Show()

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from src.models.audio_edit import EditError
+from src.models.audio_output import OutputStatus
 from src.models.audio_save import save_audio
 from src.models.errors import SoundMineError
 
@@ -18,7 +19,6 @@ VOLUME_MAX = 100
 VOLUME_STEP = 10
 BYTES_PER_SAMPLE = 4
 DEFAULT_MEMORY_MB = 1024
-FALLBACK_RATE = 44100
 DECODE_TIME_LIMIT_SECONDS = 60
 ACCEPTED_FORMATS = {
     ".wav": "wav",
@@ -27,9 +27,15 @@ ACCEPTED_FORMATS = {
     ".m4a": "m4a",
 }
 CORRUPTED_MESSAGE = "O arquivo está corrompido ou não é um áudio válido."
+NO_OUTPUT_MESSAGE = "Nenhuma saída de áudio disponível para reproduzir o arquivo."
+PLAYBACK_MESSAGE = "Não foi possível tocar o arquivo. Verifique se o dispositivo de som está conectado e ativado."
 
 
 class AudioLoadError(SoundMineError):
+    pass
+
+
+class PlaybackError(SoundMineError):
     pass
 
 
@@ -118,7 +124,7 @@ def _decode(container, expected_format: str, limit: int, target_rate: int | None
 
 
 class AudioPlayer:
-    def __init__(self, path: Path, memory_mb: int = 0) -> None:
+    def __init__(self, path: Path, memory_mb: int, outputs) -> None:
         self.path = path
         self.file_name = path.name
         self.volume = VOLUME_MAX
@@ -127,10 +133,12 @@ class AudioPlayer:
         self._frame = 0
         self._marked: int | None = None
         self._playing = False
-        self._data = np.zeros((0, CHANNELS), dtype=np.float32)
-        self._rate = 0
-        self._stream = self._open_stream(path, memory_mb)
+        self._outputs = outputs
+        self._data, self._rate = load_audio(path, memory_mb, outputs.rate())
         self._saved = self._data
+        if not outputs.register(self):
+            outputs.unregister(self)
+            raise AudioLoadError(NO_OUTPUT_MESSAGE)
 
     @property
     def duration(self) -> float:
@@ -192,6 +200,14 @@ class AudioPlayer:
         with self._lock:
             return self._playing
 
+    @property
+    def has_output(self) -> bool:
+        return self._outputs.has_output(self)
+
+    @property
+    def waiting(self) -> bool:
+        return self.playing and not self.has_output
+
     def position(self) -> float:
         with self._lock:
             return self._frame / self._rate
@@ -203,7 +219,10 @@ class AudioPlayer:
             if self._frame >= len(self._data):
                 self._frame = 0
             self._playing = True
-        self._start_stream()
+        if self._outputs.ensure(self) is OutputStatus.FAILED:
+            with self._lock:
+                self._playing = False
+            raise PlaybackError(PLAYBACK_MESSAGE)
 
     def pause(self) -> None:
         with self._lock:
@@ -228,23 +247,12 @@ class AudioPlayer:
 
     def close(self) -> None:
         self.pause()
-        if self._stream is None:
-            return
-        try:
-            self._stream.stop()
-            self._stream.close()
-        except Exception:
-            logger.exception("Falha ao fechar a saída de áudio do player.")
-        self._stream = None
+        self._outputs.unregister(self)
 
-    def _start_stream(self) -> None:
-        if self._stream is not None and not self._stream.active:
-            try:
-                self._stream.start()
-            except Exception:
-                logger.exception("Falha ao iniciar a saída de áudio do player.")
+    def prepare_output(self, device) -> int:
+        return self._rate
 
-    def _callback(self, outdata, frames, time_info, status) -> None:
+    def audio_callback(self, outdata, frames, time_info, status) -> None:
         with self._lock:
             if not self._playing:
                 outdata.fill(0)
@@ -256,47 +264,3 @@ class AudioPlayer:
             gain = self.volume / VOLUME_MAX
         outdata[:len(chunk)] = chunk * gain
         outdata[len(chunk):] = 0
-
-    def _open_stream(self, path: Path, memory_mb: int):
-        try:
-            import sounddevice
-        except Exception:
-            logger.exception("Biblioteca de reprodução indisponível.")
-            raise AudioLoadError("A reprodução de áudio não está disponível.") from None
-
-        for device, rate, extra in self._candidates(sounddevice):
-            if rate != self._rate:
-                self._data, self._rate = load_audio(path, memory_mb, rate)
-            try:
-                stream = sounddevice.OutputStream(
-                    device=device,
-                    samplerate=self._rate,
-                    channels=CHANNELS,
-                    dtype="float32",
-                    latency="low",
-                    extra_settings=extra,
-                    callback=self._callback,
-                )
-                stream.start()
-                return stream
-            except Exception:
-                logger.warning("Saída de áudio indisponível para o player: %r", device, exc_info=True)
-        raise AudioLoadError("Nenhuma saída de áudio disponível para reproduzir o arquivo.")
-
-    @staticmethod
-    def _candidates(sounddevice) -> list[tuple]:
-        candidates = []
-        try:
-            for api in sounddevice.query_hostapis():
-                device = api["default_output_device"]
-                if "WASAPI" in api["name"] and device >= 0:
-                    rate = int(sounddevice.query_devices(device)["default_samplerate"])
-                    candidates.append((device, rate, sounddevice.WasapiSettings()))
-        except Exception:
-            logger.warning("Não foi possível consultar o WASAPI.", exc_info=True)
-        try:
-            rate = int(sounddevice.query_devices(kind="output")["default_samplerate"])
-        except Exception:
-            rate = FALLBACK_RATE
-        candidates.append((None, rate, None))
-        return candidates

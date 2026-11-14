@@ -4,6 +4,7 @@ ADD_AUDIO = "adicionar áudio"
 ADD_BACKGROUND = "adicionar fundo sonoro"
 UNDO = "desfazer"
 SAVE = "salvar"
+PLAY = "tocar arquivo"
 RUN_OPTION = "executar a opção"
 START_SPEECH = "iniciar a fala"
 

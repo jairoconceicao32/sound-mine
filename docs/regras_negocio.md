@@ -432,6 +432,17 @@ Pausa a reprodução e volta ao menu de edição. A posição em que o som parou
 
 Enquanto o mini player estiver aberto, as letras e as setas do menu de edição ficam bloqueadas, seguindo o estilo do DOSVOX.
 
+### Troca de dispositivo de som
+
+Quando o dispositivo de som em uso é desconectado, o Sound Mine passa automaticamente para o dispositivo padrão do Windows, tanto no player quanto nos sons da interface.
+
+- A troca não muda o estado do player: se estava reproduzindo, continua reproduzindo a partir da mesma posição; se estava pausado, continua pausado.
+- Quando o dispositivo anterior (preferencial) é reconectado, o Sound Mine volta automaticamente a ele depois de alguns segundos de conexão estável, sem alternar repetidamente quando a conexão é instável.
+- Uma mudança deliberada do dispositivo padrão no Windows torna o novo dispositivo o preferencial.
+- Sem nenhum dispositivo disponível, o player guarda a intenção de reproduzir ou de ficar pausado e volta a esse estado quando um dispositivo for conectado. A tela informa "Aguardando saída de som", e o `Espaço` continua alternando entre reproduzir e pausar.
+- O programa anuncia o nome do dispositivo selecionado ("Saída de som: …" e "Saída de som de volta: …") ou a falta de dispositivos ("Nenhuma saída de som disponível."). A mensagem também fica escrita na janela.
+- Se houver dispositivos, mas o som não puder ser iniciado, o programa informa o erro e não anuncia "Reproduzindo".
+
 #### Critérios de aceitabilidade
 
 - O mini player deverá disponibilizar os controles de reprodução previstos.
@@ -444,6 +455,8 @@ Enquanto o mini player estiver aberto, as letras e as setas do menu de edição 
 - O atalho `Esc` deverá pausar a reprodução e voltar ao menu de edição.
 - O menu de edição deverá ficar bloqueado enquanto o mini player estiver aberto.
 - O usuário deverá conseguir acessar os controles previstos durante a utilização do mini player.
+- A desconexão do dispositivo de som não deverá interromper nem alterar o estado da reprodução, desde que exista outro dispositivo.
+- O programa deverá voltar ao dispositivo preferencial quando ele for reconectado.
 
 #### Critérios de não aceitabilidade
 

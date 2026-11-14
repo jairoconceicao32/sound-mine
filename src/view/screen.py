@@ -58,3 +58,6 @@ class Screen(NoFocusPanel):
 
     def help_lines(self) -> list[str]:
         return []
+
+    def output_changed(self) -> None:
+        pass

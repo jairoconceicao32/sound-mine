@@ -1,6 +1,7 @@
 import wx
 
-from src.models.audio_player import VOLUME_STEP
+from src.models.audio_player import VOLUME_STEP, PlaybackError
+from src.models.errors import PLAY
 from src.view.keys import Command, KeyCommand
 from src.view.screen import Screen
 
@@ -9,6 +10,7 @@ MARK_KEY = "M"
 REFRESH_MS = 100
 START_TEXT = "Início do som"
 END_TEXT = "Fim do som"
+WAITING_TEXT = "Aguardando saída de som"
 PLAYER_KEYS_TEXT = (
     "Espaço: tocar ou pausar   Setas para os lados: 5 segundos   "
     "Home: início   End: fim   M: memorizar ponto   F2: tempo   F3 e F4: volume   Esc: volta ao editor"
@@ -36,9 +38,11 @@ class PlayerScreen(Screen):
         self._player = player
         self._was_playing = False
         self._status = wx.StaticText(self, label="")
+        self._output = wx.StaticText(self, label="")
         self._keys = wx.StaticText(self, label=PLAYER_KEYS_TEXT)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self._status, 0, wx.ALL, 10)
+        sizer.Add(self._output, 0, wx.LEFT | wx.RIGHT, 10)
         sizer.Add(self._keys, 0, wx.ALL, 10)
         self.SetSizer(sizer)
         self._timer = wx.Timer(self)
@@ -49,9 +53,13 @@ class PlayerScreen(Screen):
         return "Player"
 
     def on_activate(self) -> None:
-        self._player.play()
+        if self._play() and self._player.waiting:
+            self.manager.speaker.speak(WAITING_TEXT)
         self._sync()
         self._timer.Start(REFRESH_MS)
+
+    def output_changed(self) -> None:
+        self._sync()
 
     def on_deactivate(self) -> None:
         if self.manager.current is not self:
@@ -67,7 +75,14 @@ class PlayerScreen(Screen):
                 self.manager.pop()
                 return True
             case Command.SPACE:
-                self.manager.speaker.speak("Reproduzindo" if self._player.toggle() else "Pausado")
+                if self._player.playing:
+                    self._player.pause()
+                    self.manager.speaker.speak("Pausado")
+                elif self._play():
+                    text = "Reproduzindo"
+                    if self._player.waiting:
+                        text += f". {WAITING_TEXT}"
+                    self.manager.speaker.speak(text)
             case Command.LEFT:
                 self._seek(self._player.position() - SEEK_SECONDS)
             case Command.RIGHT:
@@ -108,6 +123,15 @@ class PlayerScreen(Screen):
             "Enquanto o player está aberto, o menu de edição fica bloqueado.",
         ]
 
+    def _play(self) -> bool:
+        try:
+            self._player.play()
+        except PlaybackError as error:
+            self.manager.announcer.error(str(error), PLAY)
+            self.manager.focus_window()
+            return False
+        return True
+
     def _seek(self, seconds: float) -> None:
         position = self._player.seek(seconds)
         if position <= 0:
@@ -125,12 +149,17 @@ class PlayerScreen(Screen):
     def _sync(self) -> None:
         player = self._player
         self._was_playing = player.playing
-        state = "Tocando" if self._was_playing else "Pausado"
+        if player.waiting:
+            state = WAITING_TEXT
+        else:
+            state = "Tocando" if self._was_playing else "Pausado"
         text = (
             f"{player.file_name} - {state} - "
             f"{clock_time(player.position())} de {clock_time(player.duration)} - "
             f"Volume {player.volume}%"
         )
-        if self._status.GetLabel() != text:
+        output = self.manager.output_status
+        if self._status.GetLabel() != text or self._output.GetLabel() != output:
             self._status.SetLabel(text)
+            self._output.SetLabel(output)
             self.Layout()
