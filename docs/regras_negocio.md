@@ -58,7 +58,12 @@ Nesta opção, o usuário poderá definir as configurações gerais do Sound Min
 
 As configurações são organizadas em guias, no mesmo estilo do Over Drive. Ao final de todas as guias ficam as opções **Salvar configurações** e **Cancelar**.
 
-Nesta versão do protótipo, as configurações ficam guardadas apenas enquanto o programa está aberto. Ainda não existe arquivo de configurações: ao abrir o programa, todos os valores voltam ao padrão.
+As configurações são guardadas no arquivo `settings.dat`, na pasta do programa, e carregadas ao abrir o Sound Mine (DT12).
+
+- Na primeira vez, sem arquivo, o programa usa os valores padrão, sem aviso.
+- Se o arquivo estiver danificado ou tiver sido alterado fora do Sound Mine, o programa usa os valores padrão e informa: "As configurações estavam danificadas ou foram alteradas fora do Sound Mine. Os valores padrão foram restaurados. Revise as opções em Configurações.". O arquivo descartado é guardado como `settings.dat.invalido`.
+- Se o arquivo não puder ser lido, por exemplo por estar aberto em outro programa, o programa usa os valores padrão e informa: "O arquivo de configurações está em uso por outro programa ou sem permissão de leitura. Os valores padrão serão usados até o programa ser fechado. Feche o programa que está usando o arquivo settings.dat e abra o Sound Mine novamente.".
+- Se um valor guardado não for mais aceito, por exemplo depois de uma atualização, só esse valor volta ao padrão, sem aviso.
 
 #### Navegação
 
@@ -83,7 +88,7 @@ Nesta versão do protótipo, as configurações ficam guardadas apenas enquanto 
 - **Formato de áudio que o arquivo será salvo:** define o formato de áudio utilizado para salvar o arquivo após a edição.
 - **Tipo de canal que o arquivo será salvo:** define se o arquivo será salvo em Estéreo ou Mono.
 - **Taxa de amostragem que o áudio será salvo:** define a taxa de amostragem, em hertz, do arquivo salvo. Substitui a opção **Qualidade do áudio** (DVD, Rádio, CD) prevista inicialmente.
-- **Desativar sons da interface:** quando marcada, os sons de navegação, confirmação e fechamento deixam de tocar. O som de abertura sempre toca, porque acontece antes de as configurações poderem ser alteradas.
+- **Desativar sons da interface:** quando marcada, os sons de navegação, confirmação e borda dos menus deixam de tocar. Os sons de abertura e de fechamento do programa sempre tocam.
 - **Desativar dicas do programa:** quando marcada, os menus falam apenas o título ao abrir (por exemplo, "Menu principal"), sem a explicação de navegação.
 - **Idioma:** inglês e espanhol ainda não têm tradução; a escolha é guardada, mas a interface continua em português.
 
@@ -116,7 +121,7 @@ Os efeitos serão aplicados ao áudio quando as operações de edição forem im
 
 #### Opções
 
-**Salvar configurações:** aplica e guarda as configurações, volta ao menu principal e informa "Configurações salvas.".
+**Salvar configurações:** aplica e guarda as configurações, volta ao menu principal e informa "Configurações salvas.". Se o arquivo não puder ser gravado, as configurações valem até o programa ser fechado, e o programa informa: "As configurações foram aplicadas, mas não puderam ser guardadas. Elas voltarão ao padrão quando o programa for fechado. Verifique se há espaço livre no disco.".
 
 **Cancelar:** descarta as alterações e volta ao menu principal.
 

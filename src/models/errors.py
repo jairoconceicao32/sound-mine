@@ -7,6 +7,8 @@ SAVE = "salvar"
 PLAY = "tocar arquivo"
 RUN_OPTION = "executar a opção"
 START_SPEECH = "iniciar a fala"
+LOAD_SETTINGS = "carregar as configurações"
+SAVE_SETTINGS = "salvar as configurações"
 
 
 class SoundMineError(Exception):

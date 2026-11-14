@@ -1,6 +1,7 @@
 import wx
 
 from src.controllers.main_menu import build_main_menu
+from src.controllers.settings import load_startup_settings
 from src.models.app_log import setup_logging
 from src.models.audio_output import OutputCoordinator
 from src.models.errors import START_SPEECH
@@ -31,6 +32,7 @@ def main(version: str):
             "Instale as dependências com: python -m pip install -r requirements.txt",
             START_SPEECH,
         )
+    load_startup_settings(manager)
 
     def open_main_menu() -> None:
         manager.replace(MenuScreen(manager.parent, manager, build_main_menu(manager)))

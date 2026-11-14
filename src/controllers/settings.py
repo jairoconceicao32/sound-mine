@@ -1,21 +1,16 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
-LANGUAGES = ("Português", "inglês", "espanhol")
-SAVE_FORMATS = (
-    "mp3",
-    "m4a",
-    "wav",
-    "ogg",
-)
-CHANNELS = (
-    "Estéreo",
-    "Mono"
-)
-SAMPLE_RATES = (
-    "44100",
-    "48000",
-    "96000"
+from src.models.app_log import operation as log_operation
+from src.models.errors import LOAD_SETTINGS, SAVE_SETTINGS, user_message
+from src.models.settings import OPTIONS, RANGES
+from src.models.settings_store import (
+    SETTINGS_PATH,
+    SettingsSaveError,
+    load_message,
+    load_settings,
+    save_settings,
 )
 
 DIGITS = "0123456789"
@@ -317,7 +312,17 @@ class SettingsForm:
         return True
 
 
-def build_settings_form(manager) -> SettingsForm:
+def load_startup_settings(manager, path: Path = SETTINGS_PATH) -> None:
+    with log_operation(LOAD_SETTINGS):
+        result = load_settings(path)
+        manager.settings = result.settings
+        manager.sounds.enabled = not result.settings.disable_sounds
+        message = load_message(result.status)
+        if message is not None:
+            manager.announcer.error(message, LOAD_SETTINGS)
+
+
+def build_settings_form(manager, path: Path = SETTINGS_PATH) -> SettingsForm:
     def save() -> None:
         manager.settings.language = form.values["language"]
         manager.settings.format = form.values["format"]
@@ -332,34 +337,48 @@ def build_settings_form(manager) -> SettingsForm:
         manager.settings.disable_tips = form.values["disable_tips"]
         manager.sounds.enabled = not manager.settings.disable_sounds
         manager.pop()
+        with log_operation(SAVE_SETTINGS):
+            try:
+                save_settings(manager.settings, path)
+            except SettingsSaveError as error:
+                manager.announcer.error(user_message(error), SAVE_SETTINGS, error)
+                return
         manager.announcer.info("Configurações salvas.")
 
     form = SettingsForm(
         title="Configurações",
         tabs=[
             SettingsTab("Geral", [
-                OptionField("language", "Idioma", LANGUAGES),
-                OptionField("format", "Formato de áudio que o arquivo será salvo", SAVE_FORMATS),
-                OptionField("channel", "Tipo de canal que o arquivo será salvo", CHANNELS),
-                OptionField("sample_rate", "Taxa de amostragem que o áudio será salvo", SAMPLE_RATES),
+                OptionField("language", "Idioma", OPTIONS["language"]),
+                OptionField("format", "Formato de áudio que o arquivo será salvo", OPTIONS["format"]),
+                OptionField("channel", "Tipo de canal que o arquivo será salvo", OPTIONS["channel"]),
+                OptionField("sample_rate", "Taxa de amostragem que o áudio será salvo",
+                            OPTIONS["sample_rate"]),
                 ToggleField("disable_sounds", "Desativar sons da interface"),
                 ToggleField("disable_tips", "Desativar dicas do programa"),
             ]
             ),
             SettingsTab("Efeitos de áudio", [
                 NumberField("echo_delay", "Milissegundos para o eco",
-                            minimum=10, maximum=2000, suffix=" milissegundos",
-                            slider=False),
-                NumberField("echo_percent", "Percentual do eco"),
+                            minimum=RANGES["echo_delay"].minimum,
+                            maximum=RANGES["echo_delay"].maximum,
+                            suffix=" milissegundos", slider=False),
+                NumberField("echo_percent", "Percentual do eco",
+                            minimum=RANGES["echo_percent"].minimum,
+                            maximum=RANGES["echo_percent"].maximum),
                 NumberField("reverb_delay", "Milissegundos para o reverbe",
-                            minimum=10, maximum=2000, suffix=" milissegundos",
-                            slider=False),
-                NumberField("reverb_percent", "Percentual do reverbe"),
+                            minimum=RANGES["reverb_delay"].minimum,
+                            maximum=RANGES["reverb_delay"].maximum,
+                            suffix=" milissegundos", slider=False),
+                NumberField("reverb_percent", "Percentual do reverbe",
+                            minimum=RANGES["reverb_percent"].minimum,
+                            maximum=RANGES["reverb_percent"].maximum),
             ]),
             SettingsTab("Desempenho", [
                 NumberField("memory_mb", "Memória em megabytes",
-                            minimum=0, maximum=4096, suffix=" megabytes",
-                            slider=False, zero_text="Automático"),
+                            minimum=RANGES["memory_mb"].minimum,
+                            maximum=RANGES["memory_mb"].maximum,
+                            suffix=" megabytes", slider=False, zero_text="Automático"),
             ])
         ],
 

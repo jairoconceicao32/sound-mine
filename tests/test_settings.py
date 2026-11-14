@@ -1,4 +1,8 @@
+import tempfile
 import unittest
+from dataclasses import asdict, fields
+from pathlib import Path
+from unittest import mock
 
 from src.controllers.settings import (
     ButtonField,
@@ -8,7 +12,20 @@ from src.controllers.settings import (
     SettingsForm,
     SettingsTab,
     ToggleField,
+    build_settings_form,
+    load_startup_settings,
 )
+from src.models.settings import OPTIONS, RANGES, NumberRange, Settings
+from src.models.settings_store import (
+    SAVE_FAILED_MESSAGE,
+    TAMPERED_MESSAGE,
+    UNREADABLE_MESSAGE,
+    encode,
+    load_settings,
+    save_settings,
+    signature,
+)
+from tests.test_settings_store import decoded
 
 
 def noop() -> None:
@@ -247,6 +264,238 @@ class ToggleFieldTests(unittest.TestCase):
 
     def test_set_toggle_on_other_field_does_nothing(self):
         self.assertFalse(make_form().set_toggle(True))
+
+
+class SettingsModelTests(unittest.TestCase):
+    def test_ranges_keep_current_values(self):
+        self.assertEqual(RANGES, {
+            "echo_delay": NumberRange(10, 2000),
+            "echo_percent": NumberRange(0, 100),
+            "reverb_delay": NumberRange(10, 2000),
+            "reverb_percent": NumberRange(0, 100),
+            "memory_mb": NumberRange(0, 4096),
+        })
+
+    def test_options_keep_current_values(self):
+        self.assertEqual(OPTIONS, {
+            "language": ("Português", "inglês", "espanhol"),
+            "format": ("mp3", "m4a", "wav", "ogg"),
+            "channel": ("Estéreo", "Mono"),
+            "sample_rate": ("44100", "48000", "96000"),
+        })
+
+    def test_memory_default_is_automatic(self):
+        self.assertEqual(Settings().memory_mb, 0)
+        self.assertEqual(RANGES["memory_mb"].minimum, 0)
+
+    def test_defaults_are_inside_options_and_ranges(self):
+        settings = Settings()
+        for key, options in OPTIONS.items():
+            with self.subTest(key=key):
+                self.assertIn(getattr(settings, key), options)
+        for key, limits in RANGES.items():
+            with self.subTest(key=key):
+                self.assertTrue(limits.minimum <= getattr(settings, key) <= limits.maximum)
+
+    def test_every_setting_has_a_rule(self):
+        for field in fields(Settings):
+            with self.subTest(key=field.name):
+                if field.type in (bool, "bool"):
+                    self.assertIsInstance(field.default, bool)
+                else:
+                    self.assertIn(field.name, OPTIONS.keys() | RANGES.keys())
+
+
+class FakeSounds:
+    def __init__(self):
+        self.enabled = True
+
+
+class FakeAnnouncer:
+    def __init__(self):
+        self.messages: list[str] = []
+        self.errors: list[tuple[str, str]] = []
+
+    def info(self, message: str) -> None:
+        self.messages.append(message)
+
+    def error(self, message: str, operation: str | None = None, error=None) -> None:
+        self.errors.append((message, operation))
+
+
+class FakeManager:
+    def __init__(self):
+        self.settings = Settings()
+        self.sounds = FakeSounds()
+        self.announcer = FakeAnnouncer()
+        self.popped = 0
+
+    def pop(self) -> None:
+        self.popped += 1
+
+
+class TemporaryFileTestCase(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.path = Path(folder.name) / "settings.dat"
+        self.manager = FakeManager()
+
+
+class SettingsScreenFormTests(TemporaryFileTestCase):
+    def setUp(self):
+        super().setUp()
+        self.form = build_settings_form(self.manager, self.path)
+
+    def input_fields(self) -> list:
+        return [field for tab in self.form.tabs for field in tab.fields]
+
+    def go_to_memory(self) -> None:
+        names = [tab.name for tab in self.form.tabs]
+        for _ in range(names.index("Desempenho")):
+            self.form.next_tab()
+        self.form.next_field()
+        self.assertEqual(self.form.current().key, "memory_mb")
+
+    def test_fields_use_model_options_and_ranges(self):
+        for field in self.input_fields():
+            with self.subTest(key=field.key):
+                if isinstance(field, OptionField):
+                    self.assertEqual(field.options, OPTIONS[field.key])
+                elif isinstance(field, NumberField):
+                    self.assertEqual(field.minimum, RANGES[field.key].minimum)
+                    self.assertEqual(field.maximum, RANGES[field.key].maximum)
+                else:
+                    self.assertIsInstance(field, ToggleField)
+
+    def test_form_covers_every_setting(self):
+        keys = {field.key for field in self.input_fields()}
+        self.assertEqual(keys, {field.name for field in fields(Settings)})
+
+    def test_initial_values_are_the_defaults(self):
+        self.assertEqual(self.form.values, asdict(Settings()))
+
+    def test_performance_tab_has_only_memory(self):
+        tab = next(tab for tab in self.form.tabs if tab.name == "Desempenho")
+        self.assertEqual([field.key for field in tab.fields], ["memory_mb"])
+
+    def test_memory_zero_is_announced_as_automatic(self):
+        self.go_to_memory()
+        self.assertEqual(self.form.text_of(self.form.current()), "Memória em megabytes: Automático")
+
+    def test_memory_accepts_4096(self):
+        self.go_to_memory()
+        for digit in "4096":
+            self.form.type_digit(digit)
+        self.assertTrue(self.form.confirm_typing())
+        self.assertEqual(self.form.values["memory_mb"], 4096)
+        self.assertEqual(self.form.text_of(self.form.current()), "Memória em megabytes: 4096 megabytes")
+
+    def test_memory_rejects_4097(self):
+        self.go_to_memory()
+        for digit in "4097":
+            self.form.type_digit(digit)
+        self.assertFalse(self.form.confirm_typing())
+        self.assertEqual(self.form.values["memory_mb"], 0)
+
+    def test_save_applies_every_value(self):
+        self.go_to_memory()
+        self.form.set_text("2048")
+        self.form.prev_field()
+        self.form.prev_tab()
+        self.form.prev_tab()
+        self.form.next_field()
+        self.form.change_value(1)
+        changed = self.form.values
+        self.form.buttons[0].action()
+        self.assertEqual(asdict(self.manager.settings), changed)
+        self.assertEqual(self.manager.settings.memory_mb, 2048)
+        self.assertEqual(self.manager.settings.language, "inglês")
+        self.assertEqual(self.manager.popped, 1)
+        self.assertEqual(self.manager.announcer.messages, ["Configurações salvas."])
+
+    def test_save_updates_interface_sounds(self):
+        self.manager.settings.disable_sounds = True
+        form = build_settings_form(self.manager, self.path)
+        form.buttons[0].action()
+        self.assertFalse(self.manager.sounds.enabled)
+
+    def test_save_writes_the_file(self):
+        self.go_to_memory()
+        self.form.set_text("2048")
+        self.form.buttons[0].action()
+        result = load_settings(self.path)
+        self.assertEqual(result.settings, self.manager.settings)
+        self.assertEqual(result.settings.memory_mb, 2048)
+
+    def test_save_failure_keeps_values_and_reports(self):
+        self.go_to_memory()
+        self.form.set_text("2048")
+        with mock.patch("src.models.settings_store.os.replace", side_effect=OSError(28, "sem espaço")), \
+                self.assertLogs("src.models.settings_store", "ERROR"):
+            self.form.buttons[0].action()
+        self.assertEqual(self.manager.settings.memory_mb, 2048)
+        self.assertEqual(self.manager.popped, 1)
+        self.assertEqual(self.manager.announcer.messages, [])
+        self.assertEqual(len(self.manager.announcer.errors), 1)
+        message, operation = self.manager.announcer.errors[0]
+        self.assertTrue(message.startswith(SAVE_FAILED_MESSAGE))
+        self.assertEqual(operation, "salvar as configurações")
+        self.assertFalse(self.path.exists())
+
+    def test_cancel_does_not_change_settings(self):
+        self.go_to_memory()
+        self.form.set_text("2048")
+        self.form.buttons[1].action()
+        self.assertEqual(self.manager.settings, Settings())
+        self.assertEqual(self.manager.popped, 1)
+        self.assertEqual(self.manager.announcer.messages, [])
+        self.assertFalse(self.path.exists())
+
+
+class StartupSettingsTests(TemporaryFileTestCase):
+    def test_first_run_uses_defaults_silently(self):
+        load_startup_settings(self.manager, self.path)
+        self.assertEqual(self.manager.settings, Settings())
+        self.assertTrue(self.manager.sounds.enabled)
+        self.assertEqual(self.manager.announcer.errors, [])
+
+    def test_saved_values_are_applied(self):
+        save_settings(Settings(memory_mb=512, disable_sounds=True, disable_tips=True), self.path)
+        load_startup_settings(self.manager, self.path)
+        self.assertEqual(self.manager.settings.memory_mb, 512)
+        self.assertTrue(self.manager.settings.disable_tips)
+        self.assertFalse(self.manager.sounds.enabled)
+        self.assertEqual(self.manager.announcer.errors, [])
+
+    def test_tampered_file_is_reported(self):
+        save_settings(Settings(memory_mb=512), self.path)
+        content = decoded(self.path)
+        content["configuracoes"]["memory_mb"] = 4096
+        self.path.write_bytes(encode(content))
+        with self.assertLogs("src.models.settings_store", "WARNING"):
+            load_startup_settings(self.manager, self.path)
+        self.assertEqual(self.manager.settings, Settings())
+        self.assertEqual(self.manager.announcer.errors, [(TAMPERED_MESSAGE, "carregar as configurações")])
+
+    def test_unreadable_file_is_reported(self):
+        save_settings(Settings(memory_mb=512), self.path)
+        with mock.patch.object(Path, "open", side_effect=PermissionError(13, "negado")), \
+                self.assertLogs("src.models.settings_store", "WARNING"):
+            load_startup_settings(self.manager, self.path)
+        self.assertEqual(self.manager.settings, Settings())
+        self.assertEqual(self.manager.announcer.errors, [(UNREADABLE_MESSAGE, "carregar as configurações")])
+
+    def test_corrected_value_is_not_reported(self):
+        save_settings(Settings(), self.path)
+        content = decoded(self.path)
+        content["configuracoes"].pop("disable_tips")
+        content["verificacao"] = signature(content["configuracoes"])
+        self.path.write_bytes(encode(content))
+        with self.assertLogs("src.models.settings_store", "WARNING"):
+            load_startup_settings(self.manager, self.path)
+        self.assertEqual(self.manager.settings, Settings())
+        self.assertEqual(self.manager.announcer.errors, [])
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 SOUNDS_DIR = Path(__file__).resolve().parents[2] / "sounds" / "interface"
 SOUND_NAMES = ("startup", "close", "navigation", "confirme", "border")
+ALWAYS_PLAYED = ("startup", "close")
 MAX_FILE_SIZE = 5 * 1024 * 1024
 MAX_WAIT_SECONDS = 3.0
 SILENCE_THRESHOLD = 0.01
@@ -45,7 +46,7 @@ class InterfaceSounds:
 
     def play(self, name: str) -> None:
         sound = self._sounds.get(name)
-        if sound is None or not self.enabled:
+        if sound is None or not self.allowed(name):
             return
         with self._lock:
             self._buffer = sound
@@ -62,8 +63,11 @@ class InterfaceSounds:
             self._buffer = None
             self._position = 0
 
+    def allowed(self, name: str) -> bool:
+        return self.enabled or name in ALWAYS_PLAYED
+
     def play_and_wait(self, name: str) -> None:
-        if name not in self._sounds or not self.enabled or not self.has_output:
+        if name not in self._sounds or not self.allowed(name) or not self.has_output:
             return
         self.play(name)
         deadline = time.monotonic() + MAX_WAIT_SECONDS

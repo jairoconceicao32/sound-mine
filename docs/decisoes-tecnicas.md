@@ -88,9 +88,17 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 
 **Mensagem de abertura:** ao abrir um menu, o programa fala e mostra a mensagem de abertura do menu (`intro`, ou o título quando não houver). Depois de 3 segundos (`MESSAGE_TIME_MS`), o texto sai da janela e o item atual é falado sem interromper a mensagem. Uma seta ou letra interrompe a mensagem imediatamente. Com a opção **Desativar dicas do programa** marcada, a mensagem de abertura é apenas o título do menu.
 
-**Sons da interface:** abertura (`startup`), fechamento (`close`), navegação (`navigation`), confirmação (`confirme`) e borda do menu (`border`). Com a opção **Desativar sons da interface** marcada, `InterfaceSounds.enabled` fica falso e os sons deixam de tocar.
+**Sons da interface:** abertura (`startup`), fechamento (`close`), navegação (`navigation`), confirmação (`confirme`) e borda do menu (`border`). Com a opção **Desativar sons da interface** marcada, `InterfaceSounds.enabled` fica falso e os sons de navegação, confirmação e borda deixam de tocar. Os sons de abertura e de fechamento sempre tocam (`ALWAYS_PLAYED`).
 
-**Configurações em memória:** os valores ficam em um objeto `Settings` (`src/models/settings.py`), criado ao abrir o programa e guardado no `ScreenManager`. A tela de configurações altera apenas uma cópia (o formulário), que só é aplicada ao salvar. Ainda não há arquivo de configurações.
+**Configurações em memória:** os valores ficam em um objeto `Settings` (`src/models/settings.py`), criado ao abrir o programa e guardado no `ScreenManager`. A tela de configurações altera apenas uma cópia (o formulário), que só é aplicada ao salvar. Ao abrir o programa, os valores vêm do arquivo de configurações, e ao salvar eles são gravados nele (DT12).
+
+As regras de cada valor ficam todas no model (`src/models/settings.py`), para servir tanto ao formulário quanto à futura leitura das configurações:
+
+- os padrões são os valores iniciais do `Settings`;
+- as listas das opções ficam em `OPTIONS` (idioma, formato, canal e taxa de amostragem);
+- as faixas dos números ficam em `RANGES`, por exemplo Memória em megabytes de 0 a 4096, com 0 = Automático.
+
+O formulário (`src/controllers/settings.py`) usa essas definições e guarda só a apresentação: rótulo, sufixo, passo, se o campo é controle deslizante e o texto "Automático". O equivalente de Automático em megabytes (1024 MB, `DEFAULT_MEMORY_MB`) continua no player (DT08).
 
 **Título da janela:** é sempre `SOUND_MINE_VER`, para que NVDA+T leia o nome e a versão do programa.
 
@@ -130,6 +138,8 @@ Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário
 | Salvar, inclusive pela confirmação de saída do editor | Erro ao salvar |
 | Erro inesperado em qualquer opção de menu, formulário ou confirmação | Erro ao executar a opção |
 | Fala indisponível na abertura do programa | Erro ao iniciar a fala |
+| Arquivo de configurações descartado ou ilegível, na abertura (DT12) | Erro ao carregar as configurações |
+| Falha ao gravar o arquivo de configurações (DT12) | Erro ao salvar as configurações |
 | Tocar sem conseguir abrir nenhuma saída de som (DT10) | Erro ao tocar arquivo |
 
 **Redação das mensagens (BUG04, etapa 4):** as regras abaixo valem para todas as mensagens e para as que forem criadas depois.
@@ -170,6 +180,9 @@ Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário
 | Salvar | Formato configurado inválido | O formato de gravação configurado não é válido. Escolha um formato em Configurações, guia Geral. |
 | Salvar | Extensão diferente do formato | O arquivo será salvo no formato *MP3*, definido nas configurações. Use a extensão *.mp3*. |
 | Salvar | Sem áudio | Não há áudio para salvar. |
+| Carregar as configurações | Arquivo danificado ou alterado fora do programa (DT12) | As configurações estavam danificadas ou foram alteradas fora do Sound Mine. Os valores padrão foram restaurados. Revise as opções em Configurações. |
+| Carregar as configurações | Arquivo sem permissão de leitura ou em uso (DT12) | O arquivo de configurações está em uso por outro programa ou sem permissão de leitura. Os valores padrão serão usados até o programa ser fechado. Feche o programa que está usando o arquivo settings.dat e abra o Sound Mine novamente. |
+| Salvar as configurações | Falha ao gravar o arquivo (DT12) | As configurações foram aplicadas, mas não puderam ser guardadas. Elas voltarão ao padrão quando o programa for fechado. Verifique se há espaço livre no disco. |
 | Salvar | Pasta inexistente | A pasta escolhida não existe. Escolha outra pasta. |
 | Salvar | Sem permissão ou arquivo em uso (P2) | Sem permissão para gravar nessa pasta, ou o arquivo está em uso. Escolha outra pasta, como Documentos, ou feche o programa que está usando o arquivo. |
 | Salvar | Outras falhas, como disco cheio | Não foi possível salvar o arquivo. Verifique se há espaço livre no disco ou escolha outra pasta. |
@@ -521,3 +534,48 @@ Nunca são gravados o nome do usuário ou do computador, nomes de arquivos e pas
 - A limpeza por padrão de texto pode não reconhecer um caminho fora de aspas que não termine em extensão de áudio. Os pontos conhecidos foram corrigidos na origem, e os testes cobrem os formatos usados pelo Python e pelo PyAV.
 - Duas instâncias do Sound Mine abertas ao mesmo tempo podem disputar a rotação do arquivo. A falha é silenciosa e não afeta o uso.
 - O registro "Erro informado ao usuário" só é feito quando a tela informa o erro dentro de uma operação conhecida, ou sem nenhuma operação. Erros mostrados fora desses fluxos continuam sendo registrados, mas com `operação=-`.
+
+## DT12 — Persistência das configurações
+
+**Funcionamento no programa:**
+
+- Ao abrir, `load_startup_settings` (`src/controllers/settings.py`) carrega o arquivo, aplica os valores e liga ou desliga os sons da interface. A leitura acontece depois do aviso de fala indisponível e antes da tela de abertura.
+- Arquivo descartado (`TAMPERED`) ou ilegível (`UNREADABLE`) gera o erro "Erro ao carregar as configurações" (DT05). Um valor corrigido (`CORRECTED`) só é registrado no log, sem aviso.
+- **Salvar configurações** aplica os valores e grava o arquivo. Se a gravação falhar, os valores continuam valendo até o programa fechar, e aparece o erro "Erro ao salvar as configurações", no lugar de "Configurações salvas.". **Cancelar** não grava nada.
+- Leitura e gravação rodam dentro de uma operação do log (DT11), para que o erro não seja registrado duas vezes.
+- **Desativar sons da interface** é guardada e aplicada ao abrir, mas os sons de abertura e de fechamento do programa sempre tocam (`ALWAYS_PLAYED`, em `InterfaceSounds`).
+
+**Local:** por enquanto, `settings.dat` na pasta do programa, ao lado de `sound_mine.py` (`SETTINGS_PATH`). O arquivo e a cópia `settings.dat.invalido` ficam fora do git (`.gitignore`). Se a pasta do programa não aceitar gravação, como numa instalação em `C:\Program Files`, as configurações não são guardadas, e o usuário é avisado. Mudar para `%APPDATA%\Sound Mine` fica para quando houver instalador.
+
+**Formato:** o conteúdo é montado em JSON (UTF-8), compactado com `zlib` e gravado em base64 (`encode`). Só usa a biblioteca padrão do Python, sem dependência nova. Aberto no Bloco de Notas, o arquivo mostra só letras e números, sem nenhum valor legível. O conteúdo, antes de compactar, é:
+
+```json
+{
+  "versao": 1,
+  "configuracoes": { "language": "Português", "memory_mb": 0 },
+  "verificacao": "<HMAC-SHA256>"
+}
+```
+
+**Detecção de adulteração:**
+
+- `verificacao` é um HMAC-SHA256 da versão e das configurações, em forma padronizada (chaves em ordem, sem espaços), com uma chave guardada no programa (`SIGNING_KEY`). Recalcular a verificação exige conhecer essa chave.
+- Detecta edição manual, edição por outro programa e arquivo danificado. Trocar um único caractere do arquivo já faz a verificação falhar.
+- **Limite:** não é criptografia de verdade. A compactação só esconde os valores, e a chave está no código, que qualquer pessoa pode ler. Quem fizer isso consegue decifrar e regravar o arquivo. Sem vínculo com o computador, nenhuma chave pode ficar realmente secreta. A proteção real continua sendo a validação de cada valor, que nunca deixa entrar um valor fora das regras do model.
+- Criptografia com AES (biblioteca `cryptography`) foi descartada: acrescentaria uma dependência sem proteger mais, porque a chave também ficaria no código. A DPAPI do Windows foi descartada porque prende o arquivo ao usuário e ao computador.
+- **Arquivo antigo:** o `settings.json` legível, usado durante o desenvolvimento, não é convertido. Como o nome mudou, ele é ignorado e pode ser apagado.
+
+**Leitura (`load_settings`):** o arquivo é tratado como não confiável.
+
+| Situação | Resultado | Estado |
+|---|---|---|
+| Arquivo não existe | Padrões | `NEW` |
+| Lido e válido | Valores do arquivo | `LOADED` |
+| Verificação confere, mas algum valor está fora das regras, tem tipo errado ou falta | Só esses valores voltam ao padrão | `CORRECTED` |
+| Maior que 64 KB, base64 inválido, compactação danificada ou que passa de 64 KB ao descompactar ("bomba zip"), UTF-8 ou JSON inválido, chave repetida, estrutura ou versão diferente, verificação que não confere | Todos os padrões. O arquivo é renomeado para `settings.dat.invalido`. | `TAMPERED` |
+| Sem permissão de leitura ou arquivo em uso | Padrões. O arquivo fica como está. | `UNREADABLE` |
+
+- A validação de cada valor (`is_valid` e `settings_from`, em `src/models/settings.py`) usa `OPTIONS`, `RANGES` e os padrões do `Settings`. Números precisam ser inteiros: `true`, `4.5` e `"4"` são recusados. Chaves desconhecidas são ignoradas.
+- O log registra só o motivo e os nomes das configurações corrigidas, nunca o caminho nem os valores (DT11).
+
+**Gravação (`save_settings`):** cria a pasta se preciso, grava num arquivo temporário na mesma pasta e só depois substitui o arquivo (`os.replace`). Se falhar, o temporário é apagado, o arquivo anterior fica como estava e é lançado `SettingsSaveError`.

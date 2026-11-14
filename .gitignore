@@ -42,6 +42,10 @@ tests/audios/
 # Registro de erros do programa
 logs/
 
+# Configurações do usuário
+/settings.dat
+/settings.dat.invalido
+
 # Arquivos salvos pelo editor durante os testes
 *_editado.*
 

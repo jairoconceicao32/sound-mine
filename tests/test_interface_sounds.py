@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from src.view.interface_sounds import InterfaceSounds
+from src.view.interface_sounds import SOUND_NAMES, InterfaceSounds
 
 
 class InterfaceSoundsConversionTests(unittest.TestCase):
@@ -34,6 +34,28 @@ class InterfaceSoundsConversionTests(unittest.TestCase):
     def test_resample_same_rate_keeps_data(self):
         data = np.ones((100, 2), dtype=np.float32)
         self.assertIs(InterfaceSounds._resample(data, 48000, 48000), data)
+
+
+class InterfaceSoundsEnabledTests(unittest.TestCase):
+    def setUp(self):
+        self.sounds = InterfaceSounds()
+        self.sounds._sounds = {name: np.ones((10, 2), dtype=np.float32) for name in SOUND_NAMES}
+
+    def played(self, name: str) -> bool:
+        self.sounds.stop()
+        self.sounds.play(name)
+        return self.sounds._buffer is not None
+
+    def test_every_sound_plays_when_enabled(self):
+        for name in SOUND_NAMES:
+            with self.subTest(name=name):
+                self.assertTrue(self.played(name))
+
+    def test_disabled_sounds_keep_startup_and_close(self):
+        self.sounds.enabled = False
+        for name in SOUND_NAMES:
+            with self.subTest(name=name):
+                self.assertEqual(self.played(name), name in ("startup", "close"))
 
 
 if __name__ == "__main__":
