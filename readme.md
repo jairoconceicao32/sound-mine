@@ -42,3 +42,10 @@ O registro ajuda a investigar problemas e pode ser enviado a quem desenvolve o p
 ## Status do projeto
 
 O Sound Mine está em fase de planejamento e desenvolvimento. As funcionalidades serão implementadas gradualmente, conforme a evolução das regras de negócio.
+## Licença
+
+O Sound Mine é software livre, distribuído sob a **GNU General Public License, versão 3 ou posterior** (GPL-3.0-or-later). O texto completo está no arquivo [`LICENSE`](LICENSE).
+
+Você pode usar, estudar, modificar e redistribuir o programa. Versões modificadas que forem distribuídas também precisam ser distribuídas sob a GPL, com o código-fonte disponível.
+
+O Sound Mine usa bibliotecas de terceiros, cada uma com a própria licença: wxPython (wxWindows Library Licence), accessible_output2 (MIT), PyAV (BSD-3, com o FFmpeg em LGPL/GPL), soundfile (BSD-3, com a libsndfile em LGPL), sounddevice (MIT, com o PortAudio) e NumPy (BSD-3). As licenças acompanham cada pacote instalado pelo `pip`.
