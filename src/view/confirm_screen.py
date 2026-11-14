@@ -3,6 +3,7 @@ import logging
 import wx
 
 from src.controllers.confirmation import Confirmation
+from src.models.errors import RUN_OPTION
 from src.view.keys import Command, KeyCommand
 from src.view.menu_view import MenuView
 from src.view.screen import Screen
@@ -109,5 +110,5 @@ class ConfirmScreen(Screen):
         except Exception:
             self._answered = False
             logger.exception("Erro ao executar a opção %r da confirmação %r", label, self.title)
-            self.manager.announcer.error(f"Não foi possível executar a opção {label}.")
+            self.manager.announcer.error(f"Não foi possível executar a opção {label}.", RUN_OPTION)
         self.manager.focus_window()

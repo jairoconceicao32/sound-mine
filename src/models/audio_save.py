@@ -5,6 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
+from src.models.errors import SoundMineError
+
 logger = logging.getLogger(__name__)
 
 SAVE_FORMATS = ("mp3", "m4a", "wav", "ogg")
@@ -19,7 +21,7 @@ CODECS = {
 }
 
 
-class AudioSaveError(Exception):
+class AudioSaveError(SoundMineError):
     pass
 
 

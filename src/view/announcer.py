@@ -1,5 +1,7 @@
 import wx
 
+from src.models.errors import error_title
+
 from src.view.speaker import Speaker
 
 
@@ -12,8 +14,8 @@ class Announcer:
     def info(self, message: str) -> None:
         self._speaker.speak(message)
 
-    def error(self, message: str) -> None:
-        self.dialog(message, f"Erro - {self._version}", wx.ICON_ERROR)
+    def error(self, message: str, operation: str | None = None) -> None:
+        self.dialog(message, error_title(operation), wx.ICON_ERROR)
 
     def done(self, message: str) -> None:
         self.dialog(message, self._version, wx.ICON_INFORMATION)

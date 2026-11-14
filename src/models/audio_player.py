@@ -8,6 +8,7 @@ import numpy as np
 
 from src.models.audio_edit import EditError
 from src.models.audio_save import save_audio
+from src.models.errors import SoundMineError
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ ACCEPTED_FORMATS = {
 CORRUPTED_MESSAGE = "O arquivo está corrompido ou não é um áudio válido."
 
 
-class AudioLoadError(Exception):
+class AudioLoadError(SoundMineError):
     pass
 
 

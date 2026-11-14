@@ -1,7 +1,9 @@
 import numpy as np
 
+from src.models.errors import SoundMineError
 
-class EditError(ValueError):
+
+class EditError(SoundMineError, ValueError):
     pass
 
 

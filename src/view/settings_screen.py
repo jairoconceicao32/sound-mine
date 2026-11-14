@@ -10,6 +10,7 @@ from src.controllers.settings import (
     TabField,
     ToggleField,
 )
+from src.models.errors import RUN_OPTION
 from src.view.keys import Command, KeyCommand
 from src.view.menu_view import MenuView
 from src.view.screen import Screen
@@ -37,7 +38,7 @@ def _run_action(manager, field: ButtonField) -> None:
         field.action()
     except Exception:
         logger.exception("Erro ao executar a opção %r", field.label)
-        manager.announcer.error(f"Não foi possível executar a opção {field.label}.")
+        manager.announcer.error(f"Não foi possível executar a opção {field.label}.", RUN_OPTION)
     manager.focus_window()
 
 

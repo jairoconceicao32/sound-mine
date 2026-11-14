@@ -15,7 +15,7 @@ _app: wx.App | None = None
 
 def setUpModule() -> None:
     global _app
-    _app = wx.App(False)
+    _app = wx.GetApp() or wx.App(False)
 
 
 class FakeSpeaker:
@@ -47,8 +47,8 @@ class FakeAnnouncer:
     def done(self, message: str) -> None:
         self._log.append(f"concluído: {message}")
 
-    def error(self, message: str) -> None:
-        self._log.append(f"erro: {message}")
+    def error(self, message: str, operation: str | None = None) -> None:
+        self._log.append(f"erro [{operation}]: {message}")
 
 
 class FakeSettings:
@@ -86,7 +86,7 @@ def flush() -> None:
         wx.SafeYield(None, True)
 
 
-class ExitFlowTests(unittest.TestCase):
+class ScreenFlowCase(unittest.TestCase):
     def setUp(self) -> None:
         self.log: list[str] = []
         self.frame = wx.Frame(None)
@@ -94,9 +94,6 @@ class ExitFlowTests(unittest.TestCase):
                                      FakeSounds(self.log), "Sound Mine", FakeSettings())
         self.main_menu = MainMenu(self.manager.parent, self.manager)
         self.manager.push(self.main_menu)
-        self.save = mock.patch.object(editor_menu, "save_audio_file", return_value=True)
-        self.save_mock = self.save.start()
-        self.addCleanup(self.save.stop)
 
     def tearDown(self) -> None:
         flush()
@@ -142,6 +139,14 @@ class ExitFlowTests(unittest.TestCase):
 
     def program_closed(self) -> bool:
         return "som: close" in self.log
+
+
+class ExitFlowTests(ScreenFlowCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.save = mock.patch.object(editor_menu, "save_audio_file", return_value=True)
+        self.save_mock = self.save.start()
+        self.addCleanup(self.save.stop)
 
     def test_esc_without_changes_returns_to_main_menu(self):
         player = self.open(changes=False)

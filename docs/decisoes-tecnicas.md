@@ -99,10 +99,29 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 | Tipo | Uso | Exibição |
 |---|---|---|
 | `info` | Avisos comuns | Apenas falado |
-| `error` | Erros | Caixa de diálogo |
+| `error` | Erros | Caixa de diálogo com o título "Erro ao *operação*" |
 | `done` | Operação de edição concluída (por exemplo, arquivo salvo) | Caixa de diálogo |
 
 Erros em ações de menu são registrados no console e anunciados ao usuário, sem fechar o programa.
+
+**Padronização dos erros (BUG04, etapa 2):**
+
+- Os erros do programa herdam da exceção base `SoundMineError` (`src/models/errors.py`): `AudioLoadError`, `AudioSaveError` e `EditError`, que continua sendo também `ValueError`. A exceção guarda o motivo (`reason`, que é o texto mostrado ao usuário) e uma dica opcional (`hint`), reservada para a reescrita dos textos na etapa 4.
+- `Announcer.error(mensagem, operação)` monta o título com `error_title`. O título diz onde o erro aconteceu, porque o NVDA lê o título antes da mensagem. A versão do programa saiu do título dos erros; ela continua no título da janela (NVDA+T). Sem operação, o título é apenas "Erro".
+- Operações e títulos:
+
+| Onde | Título |
+|---|---|
+| Abrir arquivo | Erro ao abrir arquivo |
+| Remover (as três opções) | Erro ao remover trecho |
+| Adição de áudio (leitura do arquivo e inserção) | Erro ao adicionar áudio |
+| Fundo sonoro (leitura do arquivo e mistura) | Erro ao adicionar fundo sonoro |
+| Desfazer sem alterações | Erro ao desfazer |
+| Salvar, inclusive pela confirmação de saída do editor | Erro ao salvar |
+| Erro inesperado em qualquer opção de menu, formulário ou confirmação | Erro ao executar a opção |
+| Fala indisponível na abertura do programa | Erro ao iniciar a fala |
+
+- Os textos das mensagens não mudaram nesta etapa. A reescrita, com operação, motivo e ação sugerida, é a etapa 4.
 
 ## DT06 — Dependências
 

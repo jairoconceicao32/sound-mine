@@ -10,6 +10,7 @@ from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
 from src.models.audio_save import AudioSaveError
+from src.models.errors import ADD_AUDIO, ADD_BACKGROUND, REMOVE, SAVE, UNDO
 from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.file_dialog import choose_audio_file, choose_save_file
@@ -45,51 +46,51 @@ def build_editor_menu(manager, player) -> Menu:
     def done(text: str) -> None:
         manager.announcer.done(text)
 
-    def fail(text: str) -> None:
-        manager.announcer.error(f"A operação não pode ser realizada: {text}")
+    def fail(text: str, operation: str) -> None:
+        manager.announcer.error(f"A operação não pode ser realizada: {text}", operation)
 
     def play() -> None:
         manager.push(PlayerScreen(manager.parent, manager, player))
 
-    def apply(operation, message: str) -> None:
+    def apply(edit, message: str, operation: str) -> None:
         try:
-            player.edit(operation)
+            player.edit(edit)
         except EditError as error:
-            fail(str(error))
+            fail(str(error), operation)
             return
         done(message)
 
     def remove_before() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_before(data, cursor),
-              "Trecho anterior removido.")
+              "Trecho anterior removido.", REMOVE)
 
     def remove_after() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_after(data, cursor),
-              "Trecho posterior removido.")
+              "Trecho posterior removido.", REMOVE)
 
     def remove_between() -> None:
-        apply(audio_edit.remove_between, "Trecho removido.")
+        apply(audio_edit.remove_between, "Trecho removido.", REMOVE)
 
-    def choose_and_load():
+    def choose_and_load(operation: str):
         path = choose_audio_file(manager.parent.GetTopLevelParent())
         if path is None:
             return None
         try:
             return player.load_compatible(path)
         except AudioLoadError as error:
-            manager.announcer.error(str(error))
+            manager.announcer.error(str(error), operation)
             return None
 
     def add_audio(where: str, text: str) -> None:
-        other = choose_and_load()
+        other = choose_and_load(ADD_AUDIO)
         if other is None:
             return
         apply(lambda data, cursor, marked: audio_edit.insert(
                   data, other, audio_edit.insert_position(data, where, cursor)),
-              f"Arquivo adicionado {text}.")
+              f"Arquivo adicionado {text}.", ADD_AUDIO)
 
     def add_background(where: str, text: str) -> None:
-        other = choose_and_load()
+        other = choose_and_load(ADD_BACKGROUND)
         if other is None:
             return
 
@@ -97,7 +98,7 @@ def build_editor_menu(manager, player) -> Menu:
             apply(lambda data, cursor, marked: audio_edit.overlay(
                       data, other, audio_edit.background_start(data, other, where, cursor),
                       main_volume, background_volume),
-                  f"Fundo sonoro adicionado {text}.")
+                  f"Fundo sonoro adicionado {text}.", ADD_BACKGROUND)
             manager.pop()
 
         form = build_background_form(f"Fundo sonoro {text}", apply_volumes, manager.pop)
@@ -108,7 +109,7 @@ def build_editor_menu(manager, player) -> Menu:
 
     def open_undo() -> None:
         if not player.has_changes:
-            fail("não há alterações para desfazer.")
+            fail("não há alterações para desfazer.", UNDO)
             return
         manager.push(ConfirmScreen(manager.parent, manager, yes_no(
             title="Desfazer alterações",
@@ -163,7 +164,7 @@ def save_audio_file(manager, player) -> bool:
     try:
         saved_rate = player.save(path, file_format, settings.channel, requested_rate)
     except AudioSaveError as error:
-        manager.announcer.error(str(error))
+        manager.announcer.error(str(error), SAVE)
         return False
     message = f"Arquivo salvo: {path.name}."
     if saved_rate != requested_rate:

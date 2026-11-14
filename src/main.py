@@ -3,6 +3,7 @@ import logging
 import wx
 
 from src.controllers.main_menu import build_main_menu
+from src.models.errors import START_SPEECH
 from src.models.screen_manager import ScreenManager
 from src.models.settings import Settings
 from src.view.announcer import Announcer
@@ -27,7 +28,8 @@ def main(version: str):
     if not speaker.available:
         announcer.error(
             "A fala pelo leitor de tela não está disponível. "
-            "Instale as dependências com: python -m pip install -r requirements.txt"
+            "Instale as dependências com: python -m pip install -r requirements.txt",
+            START_SPEECH,
         )
 
     def open_main_menu() -> None:
