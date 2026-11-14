@@ -103,8 +103,9 @@ Os efeitos serão aplicados ao áudio quando as operações de edição forem im
 | Campo | Tipo | Faixa | Padrão |
 |---|---|---|---|
 | Memória em megabytes | Caixa de edição | 0 a 4096 (0 = Automático) | 0 (Automático) |
-| Buffers para tocar | Caixa de edição | 1 a 32 | 4 |
-| Buffers para gravar | Caixa de edição | 1 a 32 | 4 |
+
+- **Memória em megabytes:** limita o tamanho do áudio na memória, ao abrir e ao editar. Em Automático (0), o limite é de 1024 MB.
+- As opções **Buffers para tocar** e **Buffers para gravar** foram retiradas. O Sound Mine não terá gravação de áudio, e nenhuma das duas era usada pelo programa (DT08).
 
 #### Tipos de campo
 

@@ -363,6 +363,14 @@ O player usa o **PyAV** (FFmpeg) para ler o arquivo e a **sounddevice** para toc
 - Licença: o PyAV é BSD-3. O FFmpeg do pacote se declara "LGPL version 3 or later" e foi compilado com `--enable-version3`, sem `--enable-gpl`. Mesmo assim, ele foi compilado com `--enable-libx264` e `--enable-libx265` e o pacote traz essas DLLs, que são GPL e servem só para vídeo. Essa combinação é contraditória e precisa de revisão antes de distribuir o Sound Mine. Caminhos possíveis: adotar para o Sound Mine uma licença compatível com a GPL, ou distribuir um FFmpeg compilado só com áudio, sem bibliotecas GPL.
 - O pacote ocupa dezenas de MB, por causa do FFmpeg.
 
+**Buffers de reprodução e gravação:** as opções **Buffers para tocar** e **Buffers para gravar** foram retiradas da guia Desempenho. Elas eram guardadas, mas nenhum código as lia:
+
+- A saída de áudio usa `latency="low"` fixo, sem `blocksize`, e o tamanho do buffer fica a cargo da PortAudio (DT10).
+- O Sound Mine não terá gravação de áudio, e não existe captura no programa.
+- O Salvar não dependia delas. O OGG é gravado em blocos fixos de 1 segundo.
+
+Assim, elas também não participam da persistência das configurações. Uma configuração de latência, se for necessária no futuro, exige regra de negócio própria e testes com o NVDA.
+
 **Player simulado:** o `PlayerState`, usado no início do desenvolvimento do editor, foi retirado. Hoje só existe o `AudioPlayer`.
 
 **Arquivos de teste:** `python tests\gerar_audios.py` cria em `tests\audios` um arquivo de 30 segundos para cada formato aceito e arquivos inválidos para testar as recusas. O tom fica mais agudo do começo para o fim, e há um bipe a cada 5 segundos.

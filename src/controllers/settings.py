@@ -328,8 +328,6 @@ def build_settings_form(manager) -> SettingsForm:
         manager.settings.reverb_percent = form.values["reverb_percent"]
         manager.settings.reverb_delay = form.values["reverb_delay"]
         manager.settings.memory_mb = form.values["memory_mb"]
-        manager.settings.play_buffers = form.values["play_buffers"]
-        manager.settings.record_buffers = form.values["record_buffers"]
         manager.settings.disable_sounds = form.values["disable_sounds"]
         manager.settings.disable_tips = form.values["disable_tips"]
         manager.sounds.enabled = not manager.settings.disable_sounds
@@ -362,12 +360,6 @@ def build_settings_form(manager) -> SettingsForm:
                 NumberField("memory_mb", "Memória em megabytes",
                             minimum=0, maximum=4096, suffix=" megabytes",
                             slider=False, zero_text="Automático"),
-                NumberField("play_buffers", "Buffers para tocar",
-                            minimum=1, maximum=32, suffix="",
-                            slider=False),
-                NumberField("record_buffers", "Buffers para gravar",
-                            minimum=1, maximum=32, suffix="",
-                            slider=False)
             ])
         ],
 
@@ -385,8 +377,6 @@ def build_settings_form(manager) -> SettingsForm:
             "reverb_percent": manager.settings.reverb_percent,
             "reverb_delay": manager.settings.reverb_delay,
             "memory_mb": manager.settings.memory_mb,
-            "play_buffers": manager.settings.play_buffers,
-            "record_buffers": manager.settings.record_buffers,
             "disable_sounds": manager.settings.disable_sounds,
             "disable_tips": manager.settings.disable_tips,
         },

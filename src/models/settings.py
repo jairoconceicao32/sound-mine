@@ -12,7 +12,5 @@ class Settings:
     reverb_percent: int = 80
     reverb_delay: int = 200
     memory_mb: int = 0
-    play_buffers: int = 4
-    record_buffers: int = 4
     disable_sounds: bool = False
     disable_tips: bool = False
