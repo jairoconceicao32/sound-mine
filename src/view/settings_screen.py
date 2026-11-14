@@ -11,7 +11,7 @@ from src.controllers.settings import (
     ToggleField,
 )
 from src.models.app_log import operation as log_operation
-from src.models.errors import RUN_OPTION
+from src.models.errors import RUN_OPTION, unexpected_option_message
 from src.view.keys import Command, KeyCommand
 from src.view.menu_view import MenuView
 from src.view.screen import Screen
@@ -40,7 +40,7 @@ def _run_action(manager, field: ButtonField) -> None:
             field.action()
         except Exception:
             logger.exception("Erro ao executar a opção %r", field.label)
-            manager.announcer.error(f"Não foi possível executar a opção {field.label}.", RUN_OPTION)
+            manager.announcer.error(unexpected_option_message(field.label), RUN_OPTION)
     manager.focus_window()
 
 

@@ -210,7 +210,7 @@ class LongFileTests(unittest.TestCase):
 
 class UnsupportedFormatTests(unittest.TestCase):
     SUPPORTED_PATTERNS = ["*.wav", "*.mp3", "*.ogg", "*.m4a"]
-    UNSUPPORTED_MESSAGE = "Formato inválido ou não suportado."
+    UNSUPPORTED_MESSAGE = "O formato do arquivo não é aceito."
 
     def setUp(self):
         self._folder = tempfile.TemporaryDirectory()
@@ -238,7 +238,7 @@ class UnsupportedFormatTests(unittest.TestCase):
 
 
 class RenamedFileTests(unittest.TestCase):
-    MISMATCH_MESSAGE = "O conteúdo do arquivo não corresponde ao formato indicado."
+    MISMATCH_MESSAGE = "O conteúdo do arquivo não corresponde à extensão."
     EXTENSIONS = (".wav", ".mp3", ".ogg", ".m4a")
 
     def setUp(self):
@@ -315,7 +315,7 @@ class CorruptedFileTests(unittest.TestCase):
 
 class PermissionTests(unittest.TestCase):
     FILE_NAME = "bloqueado_teste.wav"
-    PERMISSION_MESSAGE = "Sem permissão para ler o arquivo, ou o arquivo está em uso por outro programa."
+    PERMISSION_MESSAGE = "O arquivo está em uso por outro programa ou sem permissão de leitura."
 
     def setUp(self):
         self._folder = tempfile.TemporaryDirectory()

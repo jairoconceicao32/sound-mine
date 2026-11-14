@@ -11,7 +11,7 @@ from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
 from src.models.audio_save import AudioSaveError
-from src.models.errors import ADD_AUDIO, ADD_BACKGROUND, REMOVE, SAVE, UNDO
+from src.models.errors import ADD_AUDIO, ADD_BACKGROUND, REMOVE, SAVE, UNDO, user_message
 from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.file_dialog import choose_audio_file, choose_save_file
@@ -48,7 +48,7 @@ def build_editor_menu(manager, player) -> Menu:
         manager.announcer.done(text)
 
     def fail(text: str, operation: str, error: BaseException | None = None) -> None:
-        manager.announcer.error(f"A operação não pode ser realizada: {text}", operation, error)
+        manager.announcer.error(text, operation, error)
 
     def play() -> None:
         manager.push(PlayerScreen(manager.parent, manager, player))
@@ -58,7 +58,7 @@ def build_editor_menu(manager, player) -> Menu:
             try:
                 player.edit(edit)
             except EditError as error:
-                fail(str(error), operation, error)
+                fail(user_message(error), operation, error)
                 return
         done(message)
 
@@ -81,7 +81,7 @@ def build_editor_menu(manager, player) -> Menu:
             try:
                 return player.load_compatible(path)
             except AudioLoadError as error:
-                manager.announcer.error(str(error), operation, error)
+                manager.announcer.error(user_message(error), operation, error)
                 return None
 
     def add_audio(where: str, text: str) -> None:
@@ -113,7 +113,7 @@ def build_editor_menu(manager, player) -> Menu:
     def open_undo() -> None:
         if not player.has_changes:
             with log_operation(UNDO):
-                fail("não há alterações para desfazer.", UNDO)
+                fail("Não há alterações para desfazer.", UNDO)
             return
         manager.push(ConfirmScreen(manager.parent, manager, yes_no(
             title="Desfazer alterações",
@@ -169,7 +169,7 @@ def save_audio_file(manager, player) -> bool:
         try:
             saved_rate = player.save(path, file_format, settings.channel, requested_rate)
         except AudioSaveError as error:
-            manager.announcer.error(str(error), SAVE, error)
+            manager.announcer.error(user_message(error), SAVE, error)
             return False
     message = f"Arquivo salvo: {path.name}."
     if saved_rate != requested_rate:

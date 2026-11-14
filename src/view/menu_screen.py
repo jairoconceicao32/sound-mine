@@ -5,7 +5,7 @@ import wx
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
 from src.controllers.menu_navigator import MenuNavigator
 from src.models.app_log import operation as log_operation
-from src.models.errors import RUN_OPTION
+from src.models.errors import RUN_OPTION, unexpected_option_message
 from src.view.keys import Command, KeyCommand
 from src.view.menu_view import MenuView
 from src.view.screen import Screen
@@ -133,9 +133,7 @@ class MenuScreen(Screen):
                 item.action()
             except Exception:
                 logger.exception("Erro ao executar a opção %r", item.label)
-                self.manager.announcer.error(
-                    f"Não foi possível executar a opção {item.label}.", RUN_OPTION
-                )
+                self.manager.announcer.error(unexpected_option_message(item.label), RUN_OPTION)
         self.manager.focus_window()
         if self.manager.current is self:
             self._refresh()

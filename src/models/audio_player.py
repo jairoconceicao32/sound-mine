@@ -9,7 +9,7 @@ import numpy as np
 from src.models.audio_edit import EditError
 from src.models.audio_output import OutputStatus
 from src.models.audio_save import save_audio
-from src.models.errors import SoundMineError
+from src.models.errors import MEMORY_HINT, SoundMineError
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,11 @@ ACCEPTED_FORMATS = {
     ".m4a": "m4a",
 }
 CORRUPTED_MESSAGE = "O arquivo está corrompido ou não é um áudio válido."
-NO_OUTPUT_MESSAGE = "Nenhuma saída de áudio disponível para reproduzir o arquivo."
-PLAYBACK_MESSAGE = "Não foi possível tocar o arquivo. Verifique se o dispositivo de som está conectado e ativado."
+NO_OUTPUT_MESSAGE = "Nenhuma saída de som disponível."
+NO_OUTPUT_HINT = "Conecte ou ative um dispositivo de som e tente novamente."
+PLAYBACK_MESSAGE = "O som não pôde ser iniciado."
+PLAYBACK_HINT = "Verifique se o dispositivo de som está conectado e ativado."
+MEMORY_MESSAGE = "O arquivo é grande demais para o limite de memória configurado."
 
 
 class AudioLoadError(SoundMineError):
@@ -48,9 +51,9 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
                time_limit: float = DECODE_TIME_LIMIT_SECONDS) -> tuple[np.ndarray, int]:
     extension = path.suffix.lower()
     if extension not in ACCEPTED_FORMATS:
-        raise AudioLoadError("Formato inválido ou não suportado.")
+        raise AudioLoadError("O formato do arquivo não é aceito.", "Use arquivos MP3, M4A, WAV ou OGG.")
     if not path.is_file():
-        raise AudioLoadError("O arquivo não foi encontrado.")
+        raise AudioLoadError("O arquivo não foi encontrado.", "Ele pode ter sido movido, renomeado ou apagado.")
     if path.stat().st_size == 0:
         raise AudioLoadError(CORRUPTED_MESSAGE)
 
@@ -58,7 +61,8 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
         import av
     except Exception:
         logger.exception("Biblioteca de leitura de áudio indisponível.")
-        raise AudioLoadError("A leitura de arquivos de áudio não está disponível.") from None
+        raise AudioLoadError("A leitura de arquivos de áudio não está disponível.",
+                             "Instale as dependências com: python -m pip install -r requirements.txt") from None
 
     try:
         with av.open(str(path), mode="r") as container:
@@ -70,7 +74,8 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
         logger.warning("Sem permissão para ler o arquivo de áudio (extensão %s, errno %s).",
                        extension, error.errno)
         raise AudioLoadError(
-            "Sem permissão para ler o arquivo, ou o arquivo está em uso por outro programa."
+            "O arquivo está em uso por outro programa ou sem permissão de leitura.",
+            "Feche o programa que está usando o arquivo e tente novamente.",
         ) from None
     except Exception as error:
         logger.warning("Falha ao ler o arquivo de áudio (%s).", type(error).__name__, exc_info=True)
@@ -80,7 +85,8 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
 def _decode(container, expected_format: str, limit: int, target_rate: int | None,
             time_limit: float, av) -> tuple[np.ndarray, int]:
     if expected_format not in container.format.name.split(","):
-        raise AudioLoadError("O conteúdo do arquivo não corresponde ao formato indicado.")
+        raise AudioLoadError("O conteúdo do arquivo não corresponde à extensão.",
+                             "Ele pode ter sido renomeado com outra extensão.")
     if not container.streams.audio:
         raise AudioLoadError("O arquivo não contém áudio.")
 
@@ -93,7 +99,7 @@ def _decode(container, expected_format: str, limit: int, target_rate: int | None
     if container.duration and container.duration > 0:
         estimated_frames = container.duration / av.time_base * rate
         if estimated_frames * CHANNELS * BYTES_PER_SAMPLE > limit:
-            raise AudioLoadError("O arquivo é grande demais para o limite de memória configurado.")
+            raise AudioLoadError(MEMORY_MESSAGE, MEMORY_HINT)
 
     resampler = av.AudioResampler(format="flt", layout="stereo", rate=rate)
     deadline = time.monotonic() + time_limit
@@ -107,9 +113,10 @@ def _decode(container, expected_format: str, limit: int, target_rate: int | None
             blocks.append(block)
             total_bytes += block.nbytes
         if total_bytes > limit:
-            raise AudioLoadError("O arquivo é grande demais para o limite de memória configurado.")
+            raise AudioLoadError(MEMORY_MESSAGE, MEMORY_HINT)
         if time.monotonic() > deadline:
-            raise AudioLoadError("A leitura do arquivo demorou demais e foi cancelada.")
+            raise AudioLoadError("A leitura do arquivo demorou demais e foi cancelada.",
+                                 "O arquivo pode estar danificado.")
 
     for frame in container.decode(stream):
         collect(resampler.resample(frame))
@@ -138,7 +145,7 @@ class AudioPlayer:
         self._saved = self._data
         if not outputs.register(self):
             outputs.unregister(self)
-            raise AudioLoadError(NO_OUTPUT_MESSAGE)
+            raise AudioLoadError(NO_OUTPUT_MESSAGE, NO_OUTPUT_HINT)
 
     @property
     def duration(self) -> float:
@@ -168,7 +175,7 @@ class AudioPlayer:
             if not np.may_share_memory(data, self._saved):
                 used += data.nbytes
             if used > memory_limit_bytes(self._memory_mb):
-                raise EditError("o resultado é grande demais para o limite de memória configurado.")
+                raise EditError("O resultado ficaria grande demais para o limite de memória.", MEMORY_HINT)
             self._data = data
             self._frame = cursor
             self._marked = None
@@ -222,7 +229,7 @@ class AudioPlayer:
         if self._outputs.ensure(self) is OutputStatus.FAILED:
             with self._lock:
                 self._playing = False
-            raise PlaybackError(PLAYBACK_MESSAGE)
+            raise PlaybackError(PLAYBACK_MESSAGE, PLAYBACK_HINT)
 
     def pause(self) -> None:
         with self._lock:

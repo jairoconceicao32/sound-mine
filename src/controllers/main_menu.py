@@ -3,7 +3,7 @@ from src.controllers.menu_model import Menu, MenuItem
 from src.controllers.settings import build_settings_form
 from src.models.app_log import operation as log_operation
 from src.models.audio_player import AudioLoadError, AudioPlayer
-from src.models.errors import OPEN_FILE
+from src.models.errors import OPEN_FILE, user_message
 from src.view.file_dialog import choose_audio_file
 from src.view.settings_screen import SettingsScreen
 
@@ -17,7 +17,7 @@ def build_main_menu(manager) -> Menu:
             try:
                 player = AudioPlayer(path, manager.settings.memory_mb, manager.outputs)
             except AudioLoadError as error:
-                manager.announcer.error(str(error), OPEN_FILE, error)
+                manager.announcer.error(user_message(error), OPEN_FILE, error)
                 return
         open_editor(manager, player)
 

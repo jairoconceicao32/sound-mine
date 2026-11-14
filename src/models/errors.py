@@ -16,6 +16,19 @@ class SoundMineError(Exception):
         self.hint = hint
 
 
+MEMORY_HINT = "Aumente o valor de Memória em megabytes, em Configurações, guia Desempenho."
+
+
+def user_message(error: BaseException) -> str:
+    if isinstance(error, SoundMineError):
+        return f"{error.reason} {error.hint}" if error.hint else error.reason
+    return str(error)
+
+
+def unexpected_option_message(label: str) -> str:
+    return f"Ocorreu um erro inesperado na opção {label}. Tente novamente."
+
+
 def error_title(operation: str | None = None) -> str:
     if operation is None or not operation.strip():
         return "Erro"

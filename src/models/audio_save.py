@@ -14,7 +14,10 @@ MONO = "Mono"
 BIT_RATE = 192000
 BLOCK_SECONDS = 1
 MAX_RATES = {"mp3": 48000}
-PERMISSION_MESSAGE = "Sem permissão para gravar o arquivo nessa pasta, ou o arquivo está em uso."
+PERMISSION_MESSAGE = "Sem permissão para gravar nessa pasta, ou o arquivo está em uso."
+PERMISSION_HINT = "Escolha outra pasta, como Documentos, ou feche o programa que está usando o arquivo."
+SAVE_FAILED_MESSAGE = "Não foi possível salvar o arquivo."
+SAVE_FAILED_HINT = "Verifique se há espaço livre no disco ou escolha outra pasta."
 CODECS = {
     "mp3": ("mp3", "libmp3lame", 1152),
     "m4a": ("ipod", "aac", 1024),
@@ -50,11 +53,12 @@ def convert(data: np.ndarray, rate: int, target_rate: int, mono: bool) -> np.nda
 def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
                channel: str, sample_rate: int) -> int:
     if file_format not in SAVE_FORMATS:
-        raise AudioSaveError("Formato de gravação inválido.")
+        raise AudioSaveError("O formato de gravação configurado não é válido.",
+                             "Escolha um formato em Configurações, guia Geral.")
     if path.suffix.lower() != f".{file_format}":
         raise AudioSaveError(
-            f"O arquivo será salvo no formato {file_format.upper()}, definido nas configurações. "
-            f"Use a extensão .{file_format}."
+            f"O arquivo será salvo no formato {file_format.upper()}, definido nas configurações.",
+            f"Use a extensão .{file_format}.",
         )
     if len(data) == 0:
         raise AudioSaveError("Não há áudio para salvar.")
@@ -63,15 +67,15 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
 
     folder = path.parent
     if not folder.is_dir():
-        raise AudioSaveError("A pasta escolhida não existe.")
+        raise AudioSaveError("A pasta escolhida não existe.", "Escolha outra pasta.")
     try:
         handle, temporary = tempfile.mkstemp(prefix=".sound_mine_", suffix=path.suffix, dir=folder)
     except PermissionError:
-        raise AudioSaveError(PERMISSION_MESSAGE) from None
+        raise AudioSaveError(PERMISSION_MESSAGE, PERMISSION_HINT) from None
     except OSError as error:
         logger.error("Falha ao criar o arquivo temporário de gravação (%s, errno %s).",
                      type(error).__name__, error.errno)
-        raise AudioSaveError("Não foi possível salvar o arquivo.") from None
+        raise AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT) from None
     os.close(handle)
     temporary = Path(temporary)
     try:
@@ -86,11 +90,11 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
         raise
     except PermissionError:
         temporary.unlink(missing_ok=True)
-        raise AudioSaveError(PERMISSION_MESSAGE) from None
+        raise AudioSaveError(PERMISSION_MESSAGE, PERMISSION_HINT) from None
     except Exception:
         logger.exception("Falha ao salvar o arquivo de áudio (formato %s).", file_format)
         temporary.unlink(missing_ok=True)
-        raise AudioSaveError("Não foi possível salvar o arquivo.") from None
+        raise AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT) from None
     return target_rate
 
 

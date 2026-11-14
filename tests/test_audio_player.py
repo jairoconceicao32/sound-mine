@@ -253,12 +253,12 @@ class PlayerScreenTests(ScreenFlowCase):
 
     def test_playback_error_shows_dialog_and_never_says_playing(self):
         player = FakeScreenPlayer()
-        player.error = PlaybackError(audio_player.PLAYBACK_MESSAGE)
+        player.error = PlaybackError(audio_player.PLAYBACK_MESSAGE, audio_player.PLAYBACK_HINT)
         self.open_player(player)
-        self.assertIn(f"erro [{PLAY}]: {audio_player.PLAYBACK_MESSAGE}", self.log)
+        self.assertIn(f"erro [{PLAY}]: {audio_player.PLAYBACK_MESSAGE} {audio_player.PLAYBACK_HINT}", self.log)
         self.log.clear()
         self.press(wx.WXK_SPACE)
-        self.assertIn(f"erro [{PLAY}]: {audio_player.PLAYBACK_MESSAGE}", self.log)
+        self.assertIn(f"erro [{PLAY}]: {audio_player.PLAYBACK_MESSAGE} {audio_player.PLAYBACK_HINT}", self.log)
         self.assertNotIn("fala: Reproduzindo", self.log)
         self.assertFalse(player.playing)
 

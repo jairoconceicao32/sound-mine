@@ -2,13 +2,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import wx
 
 from src.controllers import editor_menu, main_menu
 from src.controllers.menu_model import Menu, MenuItem
+from src.models import audio_edit
 from src.models.audio_edit import EditError
 from src.models.audio_player import AudioLoadError
-from src.models.audio_save import AudioSaveError
+from src.models.audio_save import SAVE_FAILED_HINT, SAVE_FAILED_MESSAGE, AudioSaveError
 from src.models.errors import (
     ADD_AUDIO,
     ADD_BACKGROUND,
@@ -22,6 +24,14 @@ from src.models.errors import (
 )
 from src.view.menu_screen import MenuScreen
 from tests.test_exit_flow import FakePlayer, ScreenFlowCase, flush
+
+
+def edit_error(action) -> EditError:
+    try:
+        action()
+    except EditError as error:
+        return error
+    raise AssertionError("a edição deveria falhar")
 
 _app: wx.App | None = None
 
@@ -108,52 +118,55 @@ class OperationTitleTests(ScreenFlowCase):
 
     def test_remove_reports_remove_operation(self):
         player = self.open_editor()
-        player.edit_error = EditError("o cursor está no início do áudio.")
+        player.edit_error = edit_error(lambda: audio_edit.remove_before(np.zeros((4, 2)), 0))
         self.letter("R")
         self.letter("A")
         self.assertEqual(self.errors(), [
-            f"erro [{REMOVE}]: A operação não pode ser realizada: o cursor está no início do áudio.",
+            f"erro [{REMOVE}]: Não há trecho antes do cursor, porque ele está no início do áudio. "
+            "No player, posicione o cursor depois do trecho que deseja remover.",
         ])
 
     def test_undo_without_changes_reports_undo_operation(self):
         self.open_editor(changes=False)
         self.letter("D")
         self.assertEqual(self.errors(), [
-            f"erro [{UNDO}]: A operação não pode ser realizada: não há alterações para desfazer.",
+            f"erro [{UNDO}]: Não há alterações para desfazer.",
         ])
 
     def test_failed_load_names_the_mix_operation(self):
         for key, operation in (("A", ADD_AUDIO), ("F", ADD_BACKGROUND)):
             with self.subTest(operation=operation):
                 player = self.open_editor()
-                player.load_error = AudioLoadError("O arquivo não foi encontrado.")
+                player.load_error = AudioLoadError("O arquivo não foi encontrado.", "Ele pode ter sido movido.")
                 with mock.patch.object(editor_menu, "choose_audio_file", return_value=Path("outro.wav")):
                     self.letter("M")
                     self.letter(key)
                     self.letter("I")
-                self.assertEqual(self.errors(), [f"erro [{operation}]: O arquivo não foi encontrado."])
+                self.assertEqual(self.errors(), [
+                    f"erro [{operation}]: O arquivo não foi encontrado. Ele pode ter sido movido.",
+                ])
                 self.manager.pop_through(self.manager._stack[1])
                 flush()
 
     def test_failed_edit_names_the_add_audio_operation(self):
         player = self.open_editor()
-        player.edit_error = EditError("o arquivo escolhido não tem áudio.")
+        player.edit_error = edit_error(lambda: audio_edit.insert(np.zeros((4, 2)), np.zeros((0, 2)), 0))
         with mock.patch.object(editor_menu, "choose_audio_file", return_value=Path("outro.wav")):
             self.letter("M")
             self.letter("A")
             self.letter("I")
         self.assertEqual(self.errors(), [
-            f"erro [{ADD_AUDIO}]: A operação não pode ser realizada: o arquivo escolhido não tem áudio.",
+            f"erro [{ADD_AUDIO}]: O arquivo escolhido não tem áudio. Escolha outro arquivo.",
         ])
 
     def test_failed_save_reports_save_operation(self):
         player = EditorPlayer()
-        player.save_error = AudioSaveError("Não foi possível salvar o arquivo.")
+        player.save_error = AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT)
         self.manager.settings = SaveSettings()
         with mock.patch.object(editor_menu, "choose_save_file", return_value=Path("saida.wav")):
             saved = editor_menu.save_audio_file(self.manager, player)
         self.assertFalse(saved)
-        self.assertEqual(self.errors(), [f"erro [{SAVE}]: Não foi possível salvar o arquivo."])
+        self.assertEqual(self.errors(), [f"erro [{SAVE}]: {SAVE_FAILED_MESSAGE} {SAVE_FAILED_HINT}"])
 
     def test_failed_open_reports_open_operation(self):
         self.manager.settings = SaveSettings()
@@ -173,7 +186,9 @@ class OperationTitleTests(ScreenFlowCase):
         self.log.clear()
         with self.assertLogs("src.view.menu_screen", level="ERROR"):
             self.press(wx.WXK_RETURN)
-        self.assertEqual(self.errors(), [f"erro [{RUN_OPTION}]: Não foi possível executar a opção Quebrada."])
+        self.assertEqual(self.errors(), [
+            f"erro [{RUN_OPTION}]: Ocorreu um erro inesperado na opção Quebrada. Tente novamente.",
+        ])
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import wx
 
 from src.models.app_log import operation as log_operation
 from src.models.audio_player import VOLUME_STEP, PlaybackError
-from src.models.errors import PLAY
+from src.models.errors import PLAY, user_message
 from src.view.keys import Command, KeyCommand
 from src.view.screen import Screen
 
@@ -129,7 +129,7 @@ class PlayerScreen(Screen):
             try:
                 self._player.play()
             except PlaybackError as error:
-                self.manager.announcer.error(str(error), PLAY, error)
+                self.manager.announcer.error(user_message(error), PLAY, error)
                 self.manager.focus_window()
                 return False
         return True
@@ -154,7 +154,7 @@ class PlayerScreen(Screen):
         if player.waiting:
             state = WAITING_TEXT
         else:
-            state = "Tocando" if self._was_playing else "Pausado"
+            state = "Reproduzindo" if self._was_playing else "Pausado"
         text = (
             f"{player.file_name} - {state} - "
             f"{clock_time(player.position())} de {clock_time(player.duration)} - "

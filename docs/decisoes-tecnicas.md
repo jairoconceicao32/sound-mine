@@ -98,15 +98,25 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 
 | Tipo | Uso | Exibição |
 |---|---|---|
-| `info` | Avisos comuns, como a troca de saída de som (DT10) | Apenas falado |
+| `info` | Avisos comuns. Hoje, só "Configurações salvas." | Apenas falado |
 | `error` | Erros | Caixa de diálogo com o título "Erro ao *operação*" |
 | `done` | Operação de edição concluída (por exemplo, arquivo salvo) | Caixa de diálogo |
 
-Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário, sem fechar o programa.
+Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário, sem fechar o programa. `Announcer.error` grava no log a operação e o tipo do erro, nunca o texto da mensagem (DT11).
+
+**Falas diretas (sem caixa de diálogo):** algumas mensagens são faladas direto pelo `Speaker`, sem passar pelo `Announcer`:
+
+| Mensagens | Onde | Interrompe a fala anterior? |
+|---|---|---|
+| Opção atual, valor do campo, resposta de uma tecla ("Pausado", "Reproduzindo", "Volume 50%", "Início do som", "Ponto memorizado em…") | Menus, configurações e player | Sim, porque é a resposta direta à tecla. |
+| Pergunta e opção inicial das confirmações (DT09) | Confirmações | A pergunta interrompe, e a opção vem em seguida, sem interromper. |
+| "Salvando o arquivo.", "Operação cancelada.", "O arquivo não foi salvo. O editor continua aberto." | Editor | Sim. |
+| Troca de saída de som (DT10) | Qualquer tela | Não. É falada 300 ms depois da troca e também escrita na linha de estado. |
+| "Qual sua opção?" ao voltar ao editor (DT07) | Editor | Não, com 150 ms de atraso. |
 
 **Padronização dos erros (BUG04, etapa 2):**
 
-- Os erros do programa herdam da exceção base `SoundMineError` (`src/models/errors.py`): `AudioLoadError`, `AudioSaveError` e `EditError`, que continua sendo também `ValueError`. A exceção guarda o motivo (`reason`, que é o texto mostrado ao usuário) e uma dica opcional (`hint`), reservada para a reescrita dos textos na etapa 4.
+- Os erros do programa herdam da exceção base `SoundMineError` (`src/models/errors.py`): `AudioLoadError`, `AudioSaveError` e `EditError`, que continua sendo também `ValueError`. A exceção guarda o motivo (`reason`, que é o `str(erro)`) e a orientação (`hint`). O texto mostrado é montado por `user_message`: motivo + orientação.
 - `Announcer.error(mensagem, operação)` monta o título com `error_title`. O título diz onde o erro aconteceu, porque o NVDA lê o título antes da mensagem. A versão do programa saiu do título dos erros; ela continua no título da janela (NVDA+T). Sem operação, o título é apenas "Erro".
 - Operações e títulos:
 
@@ -122,7 +132,51 @@ Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário
 | Fala indisponível na abertura do programa | Erro ao iniciar a fala |
 | Tocar sem conseguir abrir nenhuma saída de som (DT10) | Erro ao tocar arquivo |
 
-- Os textos das mensagens não mudaram nesta etapa. A reescrita, com operação, motivo e ação sugerida, é a etapa 4.
+**Redação das mensagens (BUG04, etapa 4):** as regras abaixo valem para todas as mensagens e para as que forem criadas depois.
+
+1. O título diz a operação ("Erro ao salvar"). O texto **não repete** o título: em vez de "Não foi possível tocar o arquivo", "O som não pôde ser iniciado".
+2. O texto traz o **motivo** e, sempre que houver algo a fazer, **o que fazer**, nessa ordem e em frases completas: "Não há um ponto memorizado. No player, pressione M para memorizar um ponto."
+3. A orientação indica o caminho exato no programa quando existe um: tecla, tela, guia e campo ("em Configurações, guia Desempenho").
+4. Sem termos técnicos nem códigos de erro na tela. Os detalhes técnicos vão só para o log (DT11). A exceção é o comando de instalação na versão DEV, enquanto o programa roda pelo código-fonte.
+5. Termos padrão: "saída de som" (não "saída de áudio") e "Reproduzindo"/"Pausado", tanto na fala quanto na tela.
+6. Proteções internas, que não deveriam acontecer, mostram uma mensagem genérica sem detalhes: "Não foi possível concluir a edição por um erro interno. Tente novamente."
+7. Erros inesperados em opções de menu: "Ocorreu um erro inesperado na opção *X*. Tente novamente."
+
+**Mensagens de erro:**
+
+| Operação | Situação | Texto |
+|---|---|---|
+| Remover | Cursor no início (Antes do cursor) | Não há trecho antes do cursor, porque ele está no início do áudio. No player, posicione o cursor depois do trecho que deseja remover. |
+| Remover | Cursor no final (Depois do cursor) | Não há trecho depois do cursor, porque ele está no final do áudio. No player, posicione o cursor antes do trecho que deseja remover. |
+| Remover | O áudio ficaria vazio | A remoção deixaria o áudio vazio. Escolha um trecho menor. |
+| Remover | Sem ponto memorizado | Não há um ponto memorizado. No player, pressione M para memorizar um ponto. |
+| Remover | Cursor no ponto memorizado | O cursor está no ponto memorizado, então não há trecho entre os dois. No player, mova o cursor ou memorize outro ponto. |
+| Adição de áudio e Fundo sonoro | Arquivo sem áudio | O arquivo escolhido não tem áudio. Escolha outro arquivo. |
+| Fundo sonoro | Cursor no final | O cursor está no final do áudio, então não há onde colocar o fundo sonoro. Escolha "No início" ou mova o cursor no player. |
+| Edição | Resultado acima do limite de memória | O resultado ficaria grande demais para o limite de memória. Aumente o valor de Memória em megabytes, em Configurações, guia Desempenho. |
+| Edição | Proteção interna (cursor ou volume inválido) | Não foi possível concluir a edição por um erro interno. Tente novamente. |
+| Desfazer | Sem alterações | Não há alterações para desfazer. |
+| Abrir, Adição de áudio e Fundo sonoro | Extensão não aceita | O formato do arquivo não é aceito. Use arquivos MP3, M4A, WAV ou OGG. |
+| Abrir, Adição de áudio e Fundo sonoro | Arquivo inexistente | O arquivo não foi encontrado. Ele pode ter sido movido, renomeado ou apagado. |
+| Abrir, Adição de áudio e Fundo sonoro | Arquivo vazio, corrompido ou ilegível | O arquivo está corrompido ou não é um áudio válido. |
+| Abrir, Adição de áudio e Fundo sonoro | Arquivo bloqueado ou sem permissão (P1) | O arquivo está em uso por outro programa ou sem permissão de leitura. Feche o programa que está usando o arquivo e tente novamente. |
+| Abrir, Adição de áudio e Fundo sonoro | Conteúdo diferente da extensão | O conteúdo do arquivo não corresponde à extensão. Ele pode ter sido renomeado com outra extensão. |
+| Abrir, Adição de áudio e Fundo sonoro | Sem faixa de áudio | O arquivo não contém áudio. |
+| Abrir, Adição de áudio e Fundo sonoro | Acima do limite de memória | O arquivo é grande demais para o limite de memória configurado. Aumente o valor de Memória em megabytes, em Configurações, guia Desempenho. |
+| Abrir, Adição de áudio e Fundo sonoro | Leitura passou de 60 s | A leitura do arquivo demorou demais e foi cancelada. O arquivo pode estar danificado. |
+| Abrir, Adição de áudio e Fundo sonoro | PyAV indisponível | A leitura de arquivos de áudio não está disponível. Instale as dependências com: python -m pip install -r requirements.txt |
+| Abrir arquivo | Nenhuma saída de som (DT10) | Nenhuma saída de som disponível. Conecte ou ative um dispositivo de som e tente novamente. |
+| Tocar arquivo | O som não inicia (P3, DT10) | O som não pôde ser iniciado. Verifique se o dispositivo de som está conectado e ativado. |
+| Salvar | Formato configurado inválido | O formato de gravação configurado não é válido. Escolha um formato em Configurações, guia Geral. |
+| Salvar | Extensão diferente do formato | O arquivo será salvo no formato *MP3*, definido nas configurações. Use a extensão *.mp3*. |
+| Salvar | Sem áudio | Não há áudio para salvar. |
+| Salvar | Pasta inexistente | A pasta escolhida não existe. Escolha outra pasta. |
+| Salvar | Sem permissão ou arquivo em uso (P2) | Sem permissão para gravar nessa pasta, ou o arquivo está em uso. Escolha outra pasta, como Documentos, ou feche o programa que está usando o arquivo. |
+| Salvar | Outras falhas, como disco cheio | Não foi possível salvar o arquivo. Verifique se há espaço livre no disco ou escolha outra pasta. |
+| Qualquer opção | Erro inesperado | Ocorreu um erro inesperado na opção *X*. Tente novamente. |
+| Abertura do programa | Fala indisponível | A fala pelo leitor de tela não está disponível. Instale as dependências com: python -m pip install -r requirements.txt |
+
+O comando de instalação nas duas últimas mensagens de dependências faz sentido enquanto o programa roda pelo código-fonte (versão DEV) e deve ser revisto na distribuição.
 
 ## DT06 — Dependências
 
@@ -233,7 +287,7 @@ O editor (RN02, RN02.1 a RN02.4 e RN03) foi desenvolvido primeiro como um protó
 - Uma operação que deixaria o áudio vazio é recusada.
 - Desfazer volta à última versão salva. Enquanto não existe a opção Salvar, essa versão é o áudio como foi aberto. Sem alterações, o programa informa "não há alterações para desfazer" e não abre a confirmação.
 - A versão salva é guardada como referência às amostras originais. As remoções não ocupam memória extra.
-- Ao concluir, o programa exibe a caixa de diálogo de conclusão (DT05), por exemplo "Trecho antes do cursor removido.".
+- Ao concluir, o programa exibe a caixa de diálogo de conclusão (DT05), por exemplo "Trecho anterior removido.".
 
 **Misturar (etapa 2):**
 
@@ -270,7 +324,7 @@ O editor (RN02, RN02.1 a RN02.4 e RN03) foi desenvolvido primeiro como um protó
 - O OGG usa a soundfile porque o FFmpeg do pacote só tem o codificador Vorbis experimental. A gravação em blocos evita o estouro de pilha da libsndfile ao gravar Vorbis longo de uma vez (DT08).
 - A conversão de taxa e de canais é feita pelo PyAV (`AudioResampler`). Mono é a mistura dos dois canais.
 
-**Erros de operação:** quando uma operação não pode ser realizada (cursor no início ou no final, falta de ponto memorizado), o programa exibe uma caixa de diálogo de erro iniciada por "A operação não pode ser realizada:" (DT05).
+**Erros de operação:** quando uma operação não pode ser realizada (cursor no início ou no final, falta de ponto memorizado), o programa exibe uma caixa de diálogo de erro com o título da operação, por exemplo "Erro ao remover trecho". O texto diz o motivo e o que fazer, por exemplo "Não há um ponto memorizado. No player, pressione M para memorizar um ponto." A lista completa está na DT05.
 
 **Alteração em `keys.py`:** foram acrescentados os comandos `TIME` (F2), `VOLUME_DOWN` (F3) e `VOLUME_UP` (F4). Nas telas que não os utilizam, a tecla segue sem efeito.
 
@@ -378,7 +432,7 @@ Correção do P3 do BUG04 (falha silenciosa ao tocar), junto com a troca automá
 
 - Recuperou: toca normalmente.
 - Não há nenhum dispositivo: a intenção de tocar fica guardada, a tela mostra "Aguardando saída de som" e o Espaço fala "Reproduzindo. Aguardando saída de som".
-- Há dispositivos, mas nenhuma saída abre: caixa "Erro ao tocar arquivo" com "Não foi possível tocar o arquivo. Verifique se o dispositivo de som está conectado e ativado." (`PlaybackError`), e o player fica pausado.
+- Há dispositivos, mas nenhuma saída abre: caixa "Erro ao tocar arquivo" com "O som não pôde ser iniciado. Verifique se o dispositivo de som está conectado e ativado." (`PlaybackError`), e o player fica pausado.
 - O programa nunca fala "Reproduzindo" sem som e sem avisar.
 
 **Mensagens:** faladas sem interromper, 300 ms depois da troca (`OUTPUT_ANNOUNCE_MS`), e escritas na linha de estado do editor e do player. Os eventos automáticos não abrem caixa de diálogo.
