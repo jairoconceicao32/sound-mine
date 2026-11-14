@@ -72,8 +72,8 @@ def load_audio(path: Path, memory_mb: int = 0, rate: int | None = None,
         raise AudioLoadError(
             "Sem permissão para ler o arquivo, ou o arquivo está em uso por outro programa."
         ) from None
-    except Exception:
-        logger.warning("Falha ao ler o arquivo de áudio: %s", path, exc_info=True)
+    except Exception as error:
+        logger.warning("Falha ao ler o arquivo de áudio (%s).", type(error).__name__, exc_info=True)
         raise AudioLoadError(CORRUPTED_MESSAGE) from None
 
 

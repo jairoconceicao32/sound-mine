@@ -1,5 +1,6 @@
 import wx
 
+from src.models.app_log import operation as log_operation
 from src.models.audio_player import VOLUME_STEP, PlaybackError
 from src.models.errors import PLAY
 from src.view.keys import Command, KeyCommand
@@ -124,12 +125,13 @@ class PlayerScreen(Screen):
         ]
 
     def _play(self) -> bool:
-        try:
-            self._player.play()
-        except PlaybackError as error:
-            self.manager.announcer.error(str(error), PLAY)
-            self.manager.focus_window()
-            return False
+        with log_operation(PLAY):
+            try:
+                self._player.play()
+            except PlaybackError as error:
+                self.manager.announcer.error(str(error), PLAY, error)
+                self.manager.focus_window()
+                return False
         return True
 
     def _seek(self, seconds: float) -> None:

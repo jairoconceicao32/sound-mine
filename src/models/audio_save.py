@@ -88,7 +88,7 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
         temporary.unlink(missing_ok=True)
         raise AudioSaveError(PERMISSION_MESSAGE) from None
     except Exception:
-        logger.exception("Falha ao salvar %s", path)
+        logger.exception("Falha ao salvar o arquivo de áudio (formato %s).", file_format)
         temporary.unlink(missing_ok=True)
         raise AudioSaveError("Não foi possível salvar o arquivo.") from None
     return target_rate

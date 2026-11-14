@@ -39,6 +39,9 @@ dmypy.json
 # Áudios gerados para validação (recriados por tests/gerar_audios.py)
 tests/audios/
 
+# Registro de erros do programa
+logs/
+
 # Arquivos salvos pelo editor durante os testes
 *_editado.*
 

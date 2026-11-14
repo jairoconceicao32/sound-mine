@@ -25,6 +25,20 @@ O Sound Mine buscará oferecer compatibilidade com NVDA, JAWS e outras tecnologi
 - **Configurações:** seleção de idioma, formato de saída e qualidade de áudio.
 - **Sons de interface:** efeitos sonoros para inicialização, encerramento e navegação pelos menus.
 
+## Registro de erros
+
+Quando ocorre um erro, o Sound Mine grava um registro técnico no arquivo `sound_mine.log`, na pasta `logs`, dentro da própria pasta do Sound Mine.
+
+Se a pasta do programa não permitir gravação (por exemplo, quando ele estiver instalado em `C:\Program Files`), o registro é gravado automaticamente em:
+
+```
+%LOCALAPPDATA%\Sound Mine\logs\sound_mine.log
+```
+
+Para abrir essa pasta, pressione `Windows + R`, digite `%LOCALAPPDATA%\Sound Mine\logs` e pressione Enter. O arquivo só é criado depois do primeiro erro.
+
+O registro ajuda a investigar problemas e pode ser enviado a quem desenvolve o programa. Ele fica apenas no seu computador e não guarda nomes de arquivos, nomes de pastas pessoais, o conteúdo dos áudios, os textos falados pelo programa nem o nome dos dispositivos de som. Do arquivo de áudio, registra apenas a extensão e o tamanho. O arquivo é limitado a 1 MB, com até 3 cópias anteriores.
+
 ## Status do projeto
 
 O Sound Mine está em fase de planejamento e desenvolvimento. As funcionalidades serão implementadas gradualmente, conforme a evolução das regras de negócio.

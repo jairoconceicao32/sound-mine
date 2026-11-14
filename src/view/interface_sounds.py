@@ -106,18 +106,18 @@ class InterfaceSounds:
     @classmethod
     def _load(cls, soundfile, path: Path, rate: int) -> np.ndarray | None:
         if not path.is_file():
-            logger.warning("Som de interface não encontrado: %s", path)
+            logger.warning("Som de interface não encontrado: %s", path.name)
             return None
         if path.stat().st_size > MAX_FILE_SIZE:
-            logger.warning("Som de interface muito grande, ignorado: %s", path)
+            logger.warning("Som de interface muito grande, ignorado: %s", path.name)
             return None
         try:
             data, source_rate = soundfile.read(str(path), dtype="float32", always_2d=True)
         except Exception:
-            logger.exception("Não foi possível ler o som de interface %s", path)
+            logger.exception("Não foi possível ler o som de interface %s", path.name)
             return None
         if len(data) == 0:
-            logger.warning("Som de interface vazio, ignorado: %s", path)
+            logger.warning("Som de interface vazio, ignorado: %s", path.name)
             return None
         data = cls._to_stereo(data)
         data = cls._trim_silence(data)

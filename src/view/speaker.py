@@ -21,5 +21,5 @@ class Speaker:
             return
         try:
             self._output.speak(text, interrupt=interrupt)
-        except Exception:
-            logger.exception("Falha ao falar %r", text)
+        except Exception as error:
+            logger.warning("Falha ao falar pelo leitor de tela (%s).", type(error).__name__)

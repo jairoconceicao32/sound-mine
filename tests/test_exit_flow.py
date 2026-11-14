@@ -47,7 +47,7 @@ class FakeAnnouncer:
     def done(self, message: str) -> None:
         self._log.append(f"concluído: {message}")
 
-    def error(self, message: str, operation: str | None = None) -> None:
+    def error(self, message: str, operation: str | None = None, error: BaseException | None = None) -> None:
         self._log.append(f"erro [{operation}]: {message}")
 
 

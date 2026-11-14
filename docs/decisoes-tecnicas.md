@@ -102,7 +102,7 @@ O Sound Mine não utiliza barra de menus, menus suspensos, submenus nem listas n
 | `error` | Erros | Caixa de diálogo com o título "Erro ao *operação*" |
 | `done` | Operação de edição concluída (por exemplo, arquivo salvo) | Caixa de diálogo |
 
-Erros em ações de menu são registrados no console e anunciados ao usuário, sem fechar o programa.
+Erros em ações de menu são registrados no log (DT11) e anunciados ao usuário, sem fechar o programa.
 
 **Padronização dos erros (BUG04, etapa 2):**
 
@@ -398,3 +398,64 @@ O nome do dispositivo é falado ao usuário, mas não é gravado no log.
 - Dois aparelhos com o mesmo nome não podem ser diferenciados.
 - O caminho pelo DirectSound (taxa diferente) e os aparelhos Bluetooth não foram testados com hardware real.
 - Abrir um arquivo sem nenhuma saída disponível continua mostrando "Erro ao abrir arquivo".
+
+## DT11 — Registro de erros
+
+Etapa 3 do BUG04, seguindo a seção 6 do relatório técnico da etapa 1. Código em `src/models/app_log.py`, configurado por `setup_logging` no início de `main.py`.
+
+**Local e tamanho:**
+
+- O arquivo é `sound_mine.log`, em UTF-8, na pasta `logs` dentro da pasta do Sound Mine (`PROGRAM_LOG_FOLDER`). A pasta `logs/` está no `.gitignore`.
+- Se a pasta do programa não aceitar gravação, como numa instalação em `C:\Program Files`, o log vai automaticamente para `%LOCALAPPDATA%\Sound Mine\logs`. Se nenhuma das duas aceitar, os erros ficam só no console, com um único aviso, sem caminho.
+- A pasta é escolhida no primeiro registro, criando e apagando um arquivo temporário nela. A permissão do Windows não é confiável numa simples consulta (`os.access`) em pastas protegidas.
+- A localização está no `readme.md`.
+- **Mudança em relação à seção 6.5 do relatório**, que previa só o `%LOCALAPPDATA%`: a pasta do programa foi escolhida pelo responsável do projeto, pela facilidade de achar o log, mantendo o `%LOCALAPPDATA%` como reserva para a versão instalada. **Risco aceito:** o log acompanha cópias e compactações da pasta do programa. Ele não contém dados pessoais.
+- A rotação usa o `RotatingFileHandler` da biblioteca padrão: 1 MB por arquivo e 3 arquivos antigos (cerca de 4 MB no máximo). Não há dependência nova.
+- O arquivo só é criado no primeiro registro (`delay=True`). Nada é enviado pela rede.
+- O nível continua `WARNING`. Os registros também aparecem no console.
+
+**Conteúdo de cada registro:** data e hora, nível, versão, módulo, função e linha, operação (`operação=salvar`), extensão e tamanho do arquivo de áudio quando houver um envolvido (`arquivo=(.mp3, 4521 bytes)`), a mensagem e o traceback com os caminhos tratados.
+
+- No primeiro registro de cada execução, um cabeçalho informa a versão do Sound Mine, a versão do Windows e do Python, as versões do wxPython, PyAV, sounddevice e soundfile e se o leitor de tela está disponível.
+- No salvamento, o arquivo de destino ainda não existe, então só a extensão é registrada.
+- Codec, taxa de amostragem, canais, duração, configurações de gravação e limite de memória **não** são registrados nesta etapa.
+
+**Operação e um registro por ocorrência:**
+
+- `operation(nome, arquivo)` é um contexto (`ContextVar`) aberto onde cada operação começa: Abrir arquivo, Remover, Adição de áudio, Fundo sonoro, Desfazer, Salvar e Tocar arquivo. Os menus, formulários e confirmações abrem o contexto "executar a opção", que vale para erros inesperados. Todo registro feito dentro do contexto recebe a operação e os dados do arquivo.
+- `Announcer.error` só grava "Erro informado ao usuário: *operação* (*tipos da exceção*, errno)" se **nenhum** registro foi feito na mesma operação. Assim, um erro com registro técnico na origem não é gravado duas vezes, e um erro previsto (por exemplo, "cursor no início do áudio") também fica registrado uma vez. O texto da mensagem mostrada ao usuário não é gravado.
+
+**Privacidade (seção 6.3 e 6.4 do relatório):** um formatador limpa cada registro inteiro antes de gravar, inclusive o traceback.
+
+| Dado | Tratamento |
+|---|---|
+| Caminhos dos módulos do programa | Relativos, por exemplo `src\models\audio_save.py` |
+| Instalação do Python | `<python>` |
+| Caminhos entre aspas (mensagens de `OSError` e do PyAV) | `'<arquivo>.<extensão>'` ou `'<caminho>'` |
+| Caminhos de áudio fora de aspas | `<arquivo>.<extensão>` |
+| Pasta do perfil do usuário | `%USERPROFILE%` |
+| Outras pastas `C:\Users\<nome>` | `C:\Users\<usuário>` |
+
+Além disso, os registros que gravavam dados pessoais foram corrigidos na origem:
+
+- a falha de leitura grava o tipo do erro, sem o caminho;
+- a falha de salvamento grava o formato, sem o caminho;
+- a falha de fala grava só o tipo do erro, sem o texto falado;
+- os sons da interface gravam só o nome do som.
+
+Nunca são gravados o nome do usuário ou do computador, nomes de arquivos e pastas pessoais, conteúdo ou metadados dos áudios, textos falados nem o nome do dispositivo de som (DT10).
+
+**Erros não tratados:** `sys.excepthook` (usado pelo wxPython para exceções em eventos) e `threading.excepthook` gravam o erro como `CRITICAL` e depois chamam o tratamento original, sem mudar o comportamento.
+
+**Falhas do próprio log:**
+
+- Se nenhuma pasta puder ser usada, o programa segue só com o console, com um único aviso, sem o caminho.
+- `logging.raiseExceptions = False`: uma falha de escrita (disco cheio, permissão, arquivo bloqueado) nunca interrompe a operação do usuário.
+- O usuário não recebe mensagem sobre falhas do log.
+- Nada é gravado no callback de áudio.
+
+**Limitações:**
+
+- A limpeza por padrão de texto pode não reconhecer um caminho fora de aspas que não termine em extensão de áudio. Os pontos conhecidos foram corrigidos na origem, e os testes cobrem os formatos usados pelo Python e pelo PyAV.
+- Duas instâncias do Sound Mine abertas ao mesmo tempo podem disputar a rotação do arquivo. A falha é silenciosa e não afeta o uso.
+- O registro "Erro informado ao usuário" só é feito quando a tela informa o erro dentro de uma operação conhecida, ou sem nenhuma operação. Erros mostrados fora desses fluxos continuam sendo registrados, mas com `operação=-`.

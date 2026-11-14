@@ -6,6 +6,7 @@ from src.controllers.background_form import build_background_form
 from src.controllers.confirmation import Confirmation, yes_no
 from src.controllers.editor_exit import CANCELED_MESSAGE, EditorExit
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
+from src.models.app_log import operation as log_operation
 from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
@@ -46,18 +47,19 @@ def build_editor_menu(manager, player) -> Menu:
     def done(text: str) -> None:
         manager.announcer.done(text)
 
-    def fail(text: str, operation: str) -> None:
-        manager.announcer.error(f"A operação não pode ser realizada: {text}", operation)
+    def fail(text: str, operation: str, error: BaseException | None = None) -> None:
+        manager.announcer.error(f"A operação não pode ser realizada: {text}", operation, error)
 
     def play() -> None:
         manager.push(PlayerScreen(manager.parent, manager, player))
 
     def apply(edit, message: str, operation: str) -> None:
-        try:
-            player.edit(edit)
-        except EditError as error:
-            fail(str(error), operation)
-            return
+        with log_operation(operation):
+            try:
+                player.edit(edit)
+            except EditError as error:
+                fail(str(error), operation, error)
+                return
         done(message)
 
     def remove_before() -> None:
@@ -75,11 +77,12 @@ def build_editor_menu(manager, player) -> Menu:
         path = choose_audio_file(manager.parent.GetTopLevelParent())
         if path is None:
             return None
-        try:
-            return player.load_compatible(path)
-        except AudioLoadError as error:
-            manager.announcer.error(str(error), operation)
-            return None
+        with log_operation(operation, path):
+            try:
+                return player.load_compatible(path)
+            except AudioLoadError as error:
+                manager.announcer.error(str(error), operation, error)
+                return None
 
     def add_audio(where: str, text: str) -> None:
         other = choose_and_load(ADD_AUDIO)
@@ -109,7 +112,8 @@ def build_editor_menu(manager, player) -> Menu:
 
     def open_undo() -> None:
         if not player.has_changes:
-            fail("não há alterações para desfazer.", UNDO)
+            with log_operation(UNDO):
+                fail("não há alterações para desfazer.", UNDO)
             return
         manager.push(ConfirmScreen(manager.parent, manager, yes_no(
             title="Desfazer alterações",
@@ -161,11 +165,12 @@ def save_audio_file(manager, player) -> bool:
     if path is None:
         return False
     manager.speaker.speak("Salvando o arquivo.")
-    try:
-        saved_rate = player.save(path, file_format, settings.channel, requested_rate)
-    except AudioSaveError as error:
-        manager.announcer.error(str(error), SAVE)
-        return False
+    with log_operation(SAVE, path, with_size=False):
+        try:
+            saved_rate = player.save(path, file_format, settings.channel, requested_rate)
+        except AudioSaveError as error:
+            manager.announcer.error(str(error), SAVE, error)
+            return False
     message = f"Arquivo salvo: {path.name}."
     if saved_rate != requested_rate:
         message += (f" A taxa de amostragem foi de {saved_rate} Hz, a maior aceita pelo formato "

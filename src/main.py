@@ -1,8 +1,7 @@
-import logging
-
 import wx
 
 from src.controllers.main_menu import build_main_menu
+from src.models.app_log import setup_logging
 from src.models.audio_output import OutputCoordinator
 from src.models.errors import START_SPEECH
 from src.models.screen_manager import ScreenManager
@@ -15,11 +14,10 @@ from src.view.startup_screen import StartupScreen
 
 
 def main(version: str):
-    logging.basicConfig(level=logging.WARNING)
-
     app = wx.App(False)
     frame = wx.Frame(None, title=version, size=(500, 400))
     speaker = Speaker()
+    setup_logging(version, speaker.available)
     outputs = OutputCoordinator()
     sounds = InterfaceSounds(outputs=outputs)
     announcer = Announcer(frame, speaker, version)
