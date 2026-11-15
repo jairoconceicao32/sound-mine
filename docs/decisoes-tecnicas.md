@@ -373,7 +373,7 @@ O player usa o **PyAV** (FFmpeg) para ler o arquivo e a **sounddevice** para toc
 **Riscos:**
 
 - O FFmpeg lê muitos formatos e tem falhas de segurança publicadas com frequência. O PyAV deve ser mantido atualizado, porque cada versão traz um FFmpeg recente. A versão fica fixada no `requirements.txt`.
-- Licença: o PyAV é BSD-3. O FFmpeg do pacote se declara "LGPL version 3 or later" e foi compilado com `--enable-version3`, sem `--enable-gpl`. Mesmo assim, ele foi compilado com `--enable-libx264` e `--enable-libx265` e o pacote traz essas DLLs, que são GPL e servem só para vídeo. Essa combinação é contraditória e precisa de revisão antes de distribuir o Sound Mine. Caminhos possíveis: adotar para o Sound Mine uma licença compatível com a GPL, ou distribuir um FFmpeg compilado só com áudio, sem bibliotecas GPL.
+- Licença: o PyAV é BSD-3. O FFmpeg do pacote se declara "LGPL version 3 or later" e foi compilado com `--enable-version3`, sem `--enable-gpl`. Mesmo assim, ele foi compilado com `--enable-libx264` e `--enable-libx265` e o pacote traz essas DLLs, que são GPL e servem só para vídeo. Essa combinação é contraditória. **Resolvido:** o Sound Mine adotou a GPL-3.0-or-later (arquivo `LICENSE`), compatível com as DLLs GPL do pacote. Ao distribuir um executável, os avisos de licença do FFmpeg e das bibliotecas incluídas, e a indicação de onde obter o código-fonte, precisam acompanhar o programa.
 - O pacote ocupa dezenas de MB, por causa do FFmpeg.
 
 **Buffers de reprodução e gravação:** as opções **Buffers para tocar** e **Buffers para gravar** foram retiradas da guia Desempenho. Elas eram guardadas, mas nenhum código as lia:

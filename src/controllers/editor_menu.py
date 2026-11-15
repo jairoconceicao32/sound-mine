@@ -136,6 +136,14 @@ def build_editor_menu(manager, player) -> Menu:
     ])
     add_menu = _editor_menu("Adição de áudio", _position_items(add_audio))
     background_menu = _editor_menu("Fundo sonoro", _position_items(add_background))
+    efeitos_menu = _editor_menu("Qual efeito", [
+        MenuItem("a", "almenta o volume", lambda: None),
+        MenuItem("D", "Diminui o volume", lambda: None),
+        MenuItem("E", "Eco", lambda: None),
+        MenuItem("s", "super eco", lambda: None),
+        MenuItem("R", "Reverberação", lambda: None),
+        MenuItem("x", "Super reverberação", lambda: None)
+    ])
     mix_menu = _editor_menu("Misturar", [
         MenuItem("A", "Adição de áudio", open_menu(add_menu)),
         MenuItem("F", "Fundo sonoro", open_menu(background_menu)),
@@ -144,6 +152,7 @@ def build_editor_menu(manager, player) -> Menu:
         "Menu de edição",
         [
             MenuItem("T", "Tocar arquivo", play),
+            MenuItem("e", "efeitos", open_menu(efeitos_menu)),
             MenuItem("R", "Remover", open_menu(remove_menu)),
             MenuItem("M", "Misturar", open_menu(mix_menu)),
             MenuItem("D", "Desfazer", open_undo),
