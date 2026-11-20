@@ -85,7 +85,7 @@ class EditorPlayer(FakePlayer):
         self.load_error: AudioLoadError | None = None
         self.save_error: AudioSaveError | None = None
 
-    def edit(self, operation) -> None:
+    def edit(self, operation, levels_operation=None) -> None:
         if self.edit_error is not None:
             raise self.edit_error
 

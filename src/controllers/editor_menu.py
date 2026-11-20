@@ -11,6 +11,7 @@ from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
 from src.models.audio_save import AudioSaveError
+from src.models.effects.volume import original_levels
 from src.models.errors import ADD_AUDIO, ADD_BACKGROUND, REMOVE, SAVE, UNDO, user_message
 from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
@@ -53,10 +54,10 @@ def build_editor_menu(manager, player) -> Menu:
     def play() -> None:
         manager.push(PlayerScreen(manager.parent, manager, player))
 
-    def apply(edit, message: str, operation: str) -> None:
+    def apply(edit, message: str, operation: str, levels=None) -> None:
         with log_operation(operation):
             try:
-                player.edit(edit)
+                player.edit(edit, levels)
             except EditError as error:
                 fail(user_message(error), operation, error)
                 return
@@ -64,14 +65,17 @@ def build_editor_menu(manager, player) -> Menu:
 
     def remove_before() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_before(data, cursor),
-              "Trecho anterior removido.", REMOVE)
+              "Trecho anterior removido.", REMOVE,
+              lambda levels, cursor, marked: audio_edit.remove_before(levels, cursor)[0])
 
     def remove_after() -> None:
         apply(lambda data, cursor, marked: audio_edit.remove_after(data, cursor),
-              "Trecho posterior removido.", REMOVE)
+              "Trecho posterior removido.", REMOVE,
+              lambda levels, cursor, marked: audio_edit.remove_after(levels, cursor)[0])
 
     def remove_between() -> None:
-        apply(audio_edit.remove_between, "Trecho removido.", REMOVE)
+        apply(audio_edit.remove_between, "Trecho removido.", REMOVE,
+              lambda levels, cursor, marked: audio_edit.remove_between(levels, cursor, marked)[0])
 
     def choose_and_load(operation: str):
         path = choose_audio_file(manager.parent.GetTopLevelParent())
@@ -90,7 +94,9 @@ def build_editor_menu(manager, player) -> Menu:
             return
         apply(lambda data, cursor, marked: audio_edit.insert(
                   data, other, audio_edit.insert_position(data, where, cursor)),
-              f"Arquivo adicionado {text}.", ADD_AUDIO)
+              f"Arquivo adicionado {text}.", ADD_AUDIO,
+              lambda levels, cursor, marked: audio_edit.insert(
+                  levels, original_levels(len(other)), audio_edit.insert_position(levels, where, cursor))[0])
 
     def add_background(where: str, text: str) -> None:
         other = choose_and_load(ADD_BACKGROUND)

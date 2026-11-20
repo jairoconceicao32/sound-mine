@@ -6,6 +6,7 @@ import numpy as np
 import wx
 
 from src.models import audio_player
+from src.models.audio_edit import EditError
 from src.models.audio_output import OutputCoordinator, output_message
 from src.models.audio_player import AudioLoadError, AudioPlayer, PlaybackError
 from src.models.errors import PLAY, SoundMineError
@@ -147,10 +148,33 @@ class PlayerOutputTests(PlayerCase):
 
     def test_edit_after_switch_still_works(self):
         self.disconnect_headset()
-        self.player.edit(lambda data, cursor, marked: (data[RATE:], 0))
+        self.player.edit(lambda data, cursor, marked: (data[RATE:], 0),
+                         lambda levels, cursor, marked: levels[RATE:])
         self.assertTrue(self.player.has_changes)
         self.player.undo()
         self.assertFalse(self.player.has_changes)
+
+    def test_edit_that_changes_length_needs_levels(self):
+        with self.assertRaises(EditError):
+            self.player.edit(lambda data, cursor, marked: (data[RATE:], 0))
+        self.assertFalse(self.player.has_changes)
+
+    def test_levels_follow_audio_on_edit_save_and_undo(self):
+        self.assertTrue(np.all(self.player.levels == 100))
+        raised = np.full(len(self.player.data), 150, dtype=np.float32)
+        self.player.edit(lambda data, cursor, marked: (data * 1.5, cursor),
+                         lambda levels, cursor, marked: raised)
+        self.assertIs(self.player.levels, raised)
+        self.player.undo()
+        self.assertTrue(np.all(self.player.levels == 100))
+        self.player.edit(lambda data, cursor, marked: (data * 1.5, cursor),
+                         lambda levels, cursor, marked: raised)
+        with mock.patch.object(audio_player, "save_audio", return_value=RATE):
+            self.player.save(Path("musica_editado.wav"), "wav", "Estéreo", RATE)
+        self.player.edit(lambda data, cursor, marked: (data, cursor),
+                         lambda levels, cursor, marked: np.full_like(levels, 175))
+        self.player.undo()
+        self.assertIs(self.player.levels, raised)
 
     def test_close_releases_only_player_output(self):
         output = self.player_output()
