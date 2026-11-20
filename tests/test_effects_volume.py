@@ -4,7 +4,7 @@ import numpy as np
 
 from src.models.effects import volume
 from src.models.effects.errors import EffectError
-from src.models.effects.volume import UP
+from src.models.effects.volume import DOWN, UP
 
 RATE = 1000
 TRANSITION = round(RATE * volume.TRANSITION_SECONDS)
@@ -39,6 +39,32 @@ class WholeAudioTests(unittest.TestCase):
             apply(frames(200, 0.1), levels, UP)
         self.assertEqual(raised.exception.reason, volume.MAX_MESSAGE)
 
+    def test_scale_goes_down_to_25_and_then_refuses(self):
+        data, levels = self.data, self.levels
+        for expected in (75, 50, 25):
+            data, levels = apply(data, levels, DOWN)
+            self.assertTrue(np.all(levels == expected))
+        with self.assertRaises(EffectError) as raised:
+            apply(data, levels, DOWN)
+        self.assertEqual(raised.exception.reason, volume.MIN_MESSAGE)
+
+    def test_single_scale_crosses_100_in_both_directions(self):
+        data, levels = apply(self.data, self.levels, UP)
+        data, levels = apply(data, levels, UP)
+        data, levels = apply(data, levels, DOWN)
+        self.assertTrue(np.all(levels == 125))
+        data, levels = apply(data, levels, DOWN)
+        data, levels = apply(data, levels, DOWN)
+        self.assertTrue(np.all(levels == 75))
+        data, levels = apply(data, levels, UP)
+        self.assertTrue(np.all(levels == 100))
+
+    def test_original_volume_is_the_fixed_reference(self):
+        data, levels = apply(self.data, self.levels, UP)
+        data, levels = apply(data, levels, UP)
+        data, levels = apply(data, levels, DOWN)
+        np.testing.assert_allclose(data, self.data * 1.25, rtol=1e-5)
+
     def test_inputs_are_not_changed(self):
         data, levels = self.data.copy(), self.levels.copy()
         apply(self.data, self.levels, UP)
@@ -71,6 +97,11 @@ class ClippingTests(unittest.TestCase):
         with self.assertRaises(EffectError) as raised:
             apply(frames(100, 0.79), volume.original_levels(100), UP)
         self.assertEqual(raised.exception.reason, volume.DISTORTION_MESSAGE)
+
+    def test_decrease_is_never_refused_for_clipping(self):
+        candidate, levels = apply(frames(100, 1.0), volume.original_levels(100), DOWN)
+        self.assertTrue(np.all(levels == 75))
+
 
 class SelectionTests(unittest.TestCase):
     def setUp(self):
@@ -119,12 +150,25 @@ class SelectionTests(unittest.TestCase):
         _, updated = apply(self.data, levels, UP, 150, 250)
         self.assertTrue(np.all(updated[150 + TRANSITION:250 - TRANSITION] == 175))
 
+    def test_decrease_levels_by_lowest_part(self):
+        levels = self.levels.copy()
+        levels[200:] = 150
+        _, updated = apply(self.data, levels, DOWN, 150, 250)
+        self.assertTrue(np.all(updated[150 + TRANSITION:250 - TRANSITION] == 75))
+
     def test_part_at_maximum_refuses_increase(self):
         levels = self.levels.copy()
         levels[200:] = 200
         with self.assertRaises(EffectError) as raised:
             apply(self.data, levels, UP, 150, 250)
         self.assertEqual(raised.exception.reason, volume.MAX_MESSAGE)
+
+    def test_part_at_minimum_refuses_decrease(self):
+        levels = self.levels.copy()
+        levels[200:] = 25
+        with self.assertRaises(EffectError) as raised:
+            apply(self.data, levels, DOWN, 150, 250)
+        self.assertEqual(raised.exception.reason, volume.MIN_MESSAGE)
 
     def test_change_stays_continuous_over_previous_transition(self):
         data, levels = apply(self.data, self.levels, UP, 200, 400)

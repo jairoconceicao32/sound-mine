@@ -7,10 +7,12 @@ from src.models.effects.errors import INTERNAL_ERROR, EffectError
 SCALE = (25, 50, 75, 100, 125, 150, 175, 200)
 ORIGINAL_LEVEL = 100
 UP = "up"
+DOWN = "down"
 TRANSITION_SECONDS = 0.01
 CLIP_LIMIT = PEAK_LIMIT
 TOLERANCE = 1e-3
 MAX_MESSAGE = "O volume máximo permitido foi atingido."
+MIN_MESSAGE = "O volume mínimo permitido foi atingido."
 DISTORTION_MESSAGE = "O volume não pode ser aumentado sem causar distorção."
 
 
@@ -19,11 +21,17 @@ def original_levels(length: int) -> np.ndarray:
 
 
 def target_level(current: np.ndarray, direction: str) -> int:
-    highest = float(current.max())
-    above = [level for level in SCALE if level > highest + TOLERANCE]
-    if not above:
-        raise EffectError(MAX_MESSAGE)
-    return above[0]
+    if direction == UP:
+        highest = float(current.max())
+        above = [level for level in SCALE if level > highest + TOLERANCE]
+        if not above:
+            raise EffectError(MAX_MESSAGE)
+        return above[0]
+    lowest = float(current.min())
+    below = [level for level in SCALE if level < lowest - TOLERANCE]
+    if not below:
+        raise EffectError(MIN_MESSAGE)
+    return below[-1]
 
 
 def transition_frames(rate: int, length: int) -> int:
@@ -52,7 +60,7 @@ def _valid_input(data: object, levels: object, rate: object, start: int, end: in
     if len(levels) and (levels.min() < SCALE[0] - TOLERANCE or levels.max() > SCALE[-1] + TOLERANCE):
         return False
     return (type(rate) is int and rate > 0 and 0 <= start < end <= len(data)
-            and direction == UP)
+            and direction in (UP, DOWN))
 
 
 def adjust(data: np.ndarray, levels: np.ndarray, rate: int, start: int, end: int,
