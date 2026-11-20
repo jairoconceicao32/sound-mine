@@ -236,7 +236,9 @@ O editor (RN02, RN02.1 a RN02.4 e RN03) foi desenvolvido primeiro como um protó
 
 | Menu | Opções |
 |---|---|
-| Menu de edição | T - Tocar arquivo, R - Remover, M - Misturar, D - Desfazer, S - Salvar |
+| Menu de edição | T - Tocar arquivo, E - Efeitos, R - Remover, M - Misturar, D - Desfazer, S - Salvar |
+| Efeitos (título "Qual efeito") | A - Aumentar o volume, D - Diminuir o volume, I - Fade in, O - Fade out, E - Eco, S - Super eco, R - Reverberação, X - Super reverberação. Regras em `docs/regras_negocio_efeitos.md`. Um efeito futuro que ainda não esteja implementado aparece no menu e fala "O efeito *nome* ainda não está disponível."; hoje, os oito efeitos estão implementados. |
+| Opções do efeito, na prévia | Aplicar efeito, Não aplicar, Ouvir novamente (confirmação sem cancelamento pelo Esc, ver DT09 e RN09 dos efeitos) |
 | Remover | A - Antes do cursor, D - Depois do cursor, E - Entre o cursor e o ponto memorizado |
 | Misturar | A - Adição de áudio, F - Fundo sonoro |
 | Adição de áudio e Fundo sonoro | I - No início, C - No cursor, F - No final |
@@ -399,7 +401,7 @@ Padrão de todas as confirmações do programa (BUG05). Novas confirmações dev
   - Setas para cima e para baixo: navegam entre as opções, com o som de navegação. Não há navegação circular; nas pontas, toca o som de borda.
   - Letras: apenas selecionam a opção que começa com a letra e falam a opção. **Nunca executam a ação.** Repetir a letra passa para a próxima opção com a mesma inicial (por exemplo, S alterna entre "Salvar e sair" e "Sair sem salvar"). Letras sem opção correspondente não fazem nada.
   - Enter: executa a opção selecionada. É a única forma de responder.
-  - Esc: cancela (`on_cancel`) e volta à tela anterior.
+  - Esc: cancela (`on_cancel`) e volta à tela anterior. **Exceção:** quando a confirmação é criada com `escape_cancels=False`, o Esc não tem efeito, e a ajuda (F1) não cita o Esc. Hoje, só as opções do efeito da prévia (Aplicar efeito, Não aplicar e Ouvir novamente) usam essa exceção, porque nelas o Esc é a passagem da reprodução para as opções e a decisão é sempre pelo Enter (RN09 de `docs/regras_negocio_efeitos.md`).
   - F1: ajuda com a pergunta, as opções e as teclas.
 - Um segundo Enter enquanto a resposta está sendo processada é ignorado. Se a ação falhar com um erro inesperado, o programa mostra a mensagem de erro e a confirmação continua respondendo.
 - A confirmação de sobrescrita ao salvar é a caixa nativa do Windows (DT07) e não segue este padrão. A troca dela por uma `ConfirmScreen` fica pendente.
