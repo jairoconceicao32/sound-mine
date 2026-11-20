@@ -8,6 +8,7 @@ from src.controllers import effects_menu
 from src.models.effects import engine, reverb
 from src.models.effects.catalog import find_effect
 from src.models.settings import Settings
+from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.preview_screen import PreviewScreen
 from tests.test_effect_preview import RATE, SECONDS, make_player
@@ -179,7 +180,7 @@ class ReverbTests(unittest.TestCase):
         self.assertEqual(len(result), RATE * 60 + response_length(RATE, 6000) - 1)
 
     def test_catalog_entries(self):
-        for effect_id, key in (("reverberacao", "R"),):
+        for effect_id, key in (("reverberacao", "R"), ("super_reverberacao", "X")):
             with self.subTest(effect=effect_id):
                 effect = find_effect(effect_id)
                 self.assertEqual((effect.key, effect.family, effect.adds_tail), (key, "reverberacao", True))
@@ -217,6 +218,20 @@ class ReverbMenuTests(ScreenFlowCase):
         self.apply_preview()
         self.assertEqual(len(self.player.data), SECONDS * RATE + response_length(RATE, 3600) - 1)
         self.assertEqual(self.player.effects, {"reverberacao": "reverberacao"})
+
+    def test_super_reverb_replaces_reverb(self):
+        self.letter("R")
+        self.apply_preview()
+        self.letter("X")
+        self.assertIsInstance(self.manager.current, ConfirmScreen)
+        self.press(wx.WXK_UP)
+        self.press(wx.WXK_RETURN)
+        self.apply_preview()
+        expected, _ = engine.apply(reverb.SUPER_REVERB, self.original, RATE, 0, len(self.original),
+                                   parameters(1200, 50))
+        np.testing.assert_allclose(self.player.data, expected, rtol=1e-5, atol=1e-6)
+        self.assertEqual(len(self.player.data), SECONDS * RATE + response_length(RATE, 1200) - 1)
+        self.assertEqual(self.player.effects, {"reverberacao": "super_reverberacao"})
 
     def test_reverb_and_echo_are_combined(self):
         self.manager.settings.echo_delay = 300

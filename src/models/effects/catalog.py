@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from src.models.effects.contract import EffectDefinitionError, EffectSpec
 from src.models.effects.echo import ECHO, SUPER_ECHO
 from src.models.effects.fade import FADE_IN, FADE_OUT
-from src.models.effects.reverb import REVERB
+from src.models.effects.reverb import REVERB, SUPER_REVERB
 
 
 def check_catalog(effects: Iterable[EffectSpec]) -> tuple[EffectSpec, ...]:
@@ -24,7 +24,7 @@ def check_catalog(effects: Iterable[EffectSpec]) -> tuple[EffectSpec, ...]:
     return effects
 
 
-EFFECTS: tuple[EffectSpec, ...] = check_catalog((FADE_IN, FADE_OUT, ECHO, SUPER_ECHO, REVERB))
+EFFECTS: tuple[EffectSpec, ...] = check_catalog((FADE_IN, FADE_OUT, ECHO, SUPER_ECHO, REVERB, SUPER_REVERB))
 
 
 def find_effect(effect_id: str, effects: Iterable[EffectSpec] = EFFECTS) -> EffectSpec | None:

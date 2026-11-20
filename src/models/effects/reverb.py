@@ -135,3 +135,15 @@ REVERB = EffectSpec(
     adds_tail=True,
 )
 
+SUPER_REVERB = EffectSpec(
+    effect_id="super_reverberacao",
+    label="Super reverberação",
+    key="X",
+    family=FAMILY,
+    uses_selection=True,
+    parameters=PARAMETERS,
+    help_text="Reverberação mais simples, de um ambiente menor, como uma sala, com a duração e o percentual "
+              "definidos em Configurações, guia Efeitos de áudio.",
+    process=room_reverb,
+    adds_tail=True,
+)
