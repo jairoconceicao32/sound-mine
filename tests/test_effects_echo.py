@@ -6,6 +6,7 @@ import wx
 from src.controllers import effects_menu
 from src.models.effects import echo, engine
 from src.models.effects.catalog import find_effect
+from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.preview_screen import PreviewScreen
 from tests.test_effect_preview import RATE, SECONDS, make_player
@@ -58,14 +59,26 @@ class EchoTests(unittest.TestCase):
         result = echo.echo(data, SMALL_RATE, parameters(mix=0))
         np.testing.assert_array_equal(result, data)
 
+    def test_super_echo_is_louder_and_longer(self):
+        normal = echo.echo(impulse(10), SMALL_RATE, parameters(delay=100, mix=50))
+        strong = echo.super_echo(impulse(10), SMALL_RATE, parameters(delay=100, mix=50))
+        self.assertAlmostEqual(float(strong[100, 0]), 0.5 * 0.75)
+        self.assertAlmostEqual(float(strong[200, 0]), 0.5 * 0.75 * 0.7, places=6)
+        self.assertGreater(float(strong[100, 0]), float(normal[100, 0]))
+        self.assertGreater(len(strong), len(normal))
+
+    def test_super_echo_mix_is_limited_to_100(self):
+        strong = echo.super_echo(impulse(10), SMALL_RATE, parameters(delay=100, mix=80))
+        self.assertAlmostEqual(float(strong[100, 0]), 0.5)
+
     def test_input_is_not_changed(self):
         data = impulse(10)
         original = data.copy()
-        echo.echo(data, SMALL_RATE, parameters())
+        echo.super_echo(data, SMALL_RATE, parameters())
         np.testing.assert_array_equal(data, original)
 
     def test_catalog_entries(self):
-        for effect_id, key in (("eco", "E"),):
+        for effect_id, key in (("eco", "E"), ("super_eco", "S")):
             with self.subTest(effect=effect_id):
                 effect = find_effect(effect_id)
                 self.assertEqual((effect.key, effect.family, effect.adds_tail), (key, "eco", True))
@@ -144,6 +157,22 @@ class EchoMenuTests(ScreenFlowCase):
         self.assertAlmostEqual(self.player.duration, 2 + tail / RATE, places=3)
         self.apply_preview()
         self.assertEqual(len(self.player.data), SECONDS * RATE)
+
+    def test_super_echo_replaces_echo(self):
+        self.manager.settings.echo_delay = 300
+        self.manager.settings.echo_percent = 50
+        self.letter("E")
+        self.apply_preview()
+        self.letter("S")
+        self.assertIsInstance(self.manager.current, ConfirmScreen)
+        self.press(wx.WXK_UP)
+        self.press(wx.WXK_RETURN)
+        self.apply_preview()
+        expected, _ = engine.apply(echo.SUPER_ECHO, self.original, RATE, 0, len(self.original),
+                                   {echo.DELAY: 300, echo.MIX: 50})
+        np.testing.assert_allclose(self.player.data, expected, rtol=1e-6)
+        self.assertEqual(self.player.effects, {"eco": "super_eco"})
+
 
 if __name__ == "__main__":
     unittest.main()

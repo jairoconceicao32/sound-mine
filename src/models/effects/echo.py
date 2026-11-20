@@ -10,6 +10,8 @@ FAMILY = "eco"
 DELAY = "echo_delay"
 MIX = "echo_percent"
 FEEDBACK = 0.5
+SUPER_FEEDBACK = 0.7
+SUPER_MIX_FACTOR = 1.5
 SILENCE = 0.001
 
 _DEFAULTS = Settings()
@@ -45,6 +47,10 @@ def echo(data: np.ndarray, rate: int, parameters: Mapping[str, int]) -> np.ndarr
     return _echo(data, rate, parameters, 1.0, FEEDBACK)
 
 
+def super_echo(data: np.ndarray, rate: int, parameters: Mapping[str, int]) -> np.ndarray:
+    return _echo(data, rate, parameters, SUPER_MIX_FACTOR, SUPER_FEEDBACK)
+
+
 ECHO = EffectSpec(
     effect_id="eco",
     label="Eco",
@@ -58,3 +64,14 @@ ECHO = EffectSpec(
     adds_tail=True,
 )
 
+SUPER_ECHO = EffectSpec(
+    effect_id="super_eco",
+    label="Super eco",
+    key="S",
+    family=FAMILY,
+    uses_selection=True,
+    parameters=PARAMETERS,
+    help_text="Eco mais alto e mais longo, a partir dos mesmos valores das configurações.",
+    process=super_echo,
+    adds_tail=True,
+)
