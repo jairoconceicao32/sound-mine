@@ -5,6 +5,7 @@ import wx
 from src.controllers.background_form import build_background_form
 from src.controllers.confirmation import Confirmation, yes_no
 from src.controllers.editor_exit import CANCELED_MESSAGE, EditorExit
+from src.controllers.effects_menu import build_effects_menu
 from src.controllers.menu_model import LetterMode, Menu, MenuItem
 from src.models.app_log import operation as log_operation
 from src.models import audio_edit
@@ -142,14 +143,7 @@ def build_editor_menu(manager, player) -> Menu:
     ])
     add_menu = _editor_menu("Adição de áudio", _position_items(add_audio))
     background_menu = _editor_menu("Fundo sonoro", _position_items(add_background))
-    efeitos_menu = _editor_menu("Qual efeito", [
-        MenuItem("a", "almenta o volume", lambda: None),
-        MenuItem("D", "Diminui o volume", lambda: None),
-        MenuItem("E", "Eco", lambda: None),
-        MenuItem("s", "super eco", lambda: None),
-        MenuItem("R", "Reverberação", lambda: None),
-        MenuItem("x", "Super reverberação", lambda: None)
-    ])
+    efeitos_menu = build_effects_menu(manager, player)
     mix_menu = _editor_menu("Misturar", [
         MenuItem("A", "Adição de áudio", open_menu(add_menu)),
         MenuItem("F", "Fundo sonoro", open_menu(background_menu)),

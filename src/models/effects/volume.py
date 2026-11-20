@@ -20,6 +20,13 @@ def original_levels(length: int) -> np.ndarray:
     return np.full(length, ORIGINAL_LEVEL, dtype=np.float32)
 
 
+def extend_levels(levels: np.ndarray, length: int) -> np.ndarray:
+    if length <= len(levels):
+        return levels
+    last = levels[-1] if len(levels) else ORIGINAL_LEVEL
+    return np.concatenate((levels, np.full(length - len(levels), last, dtype=np.float32)))
+
+
 def target_level(current: np.ndarray, direction: str) -> int:
     if direction == UP:
         highest = float(current.max())
