@@ -37,7 +37,7 @@ class Settings:
     echo_delay: int = 300
     echo_percent: int = 75
     reverb_percent: int = 80
-    reverb_delay: int = 200
+    reverb_delay: int = 1200
     memory_mb: int = 0
     disable_sounds: bool = False
     disable_tips: bool = False
