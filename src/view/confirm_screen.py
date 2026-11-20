@@ -52,7 +52,8 @@ class ConfirmScreen(Screen):
             case Command.ACTIVATE:
                 self._answer(self._confirmation.action(self._index), self._option())
             case Command.BACK:
-                self._answer(self._confirmation.on_cancel, CANCEL_LABEL)
+                if self._confirmation.escape_cancels:
+                    self._answer(self._confirmation.on_cancel, CANCEL_LABEL)
             case Command.LETTER:
                 self._select_by_key(command.char)
             case Command.BLOCKED:
@@ -72,7 +73,7 @@ class ConfirmScreen(Screen):
             "Letra: seleciona a opção que começa com essa letra, sem confirmar. "
             "Repetir a letra passa para a próxima opção com a mesma inicial.",
             "Enter: confirma a opção selecionada.",
-            "Esc: cancela e volta à tela anterior.",
+            *(["Esc: cancela e volta à tela anterior."] if self._confirmation.escape_cancels else []),
             "F1: exibe esta ajuda.",
         ]
 

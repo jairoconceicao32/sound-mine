@@ -26,8 +26,9 @@ class Confirmation:
     title: str
     question: str
     options: Sequence[ConfirmOption]
-    on_cancel: Callable[[], None]
+    on_cancel: Callable[[], None] | None
     initial_index: int = 0
+    escape_cancels: bool = True
 
     def __post_init__(self) -> None:
         for name in ("title", "question"):
@@ -37,7 +38,9 @@ class Confirmation:
         options = tuple(self.options)
         if len(options) < 2:
             raise ConfirmationError(f"A confirmação {self.title!r} precisa de pelo menos duas opções.")
-        if not callable(self.on_cancel):
+        if type(self.escape_cancels) is not bool:
+            raise ConfirmationError(f"A confirmação {self.title!r} precisa indicar se o Esc cancela.")
+        if self.escape_cancels and not callable(self.on_cancel):
             raise ConfirmationError(f"A confirmação {self.title!r} não tem uma ação válida para o Esc.")
         if not 0 <= self.initial_index < len(options):
             raise ConfirmationError(f"Opção inicial inválida na confirmação {self.title!r}.")
