@@ -36,6 +36,13 @@ def fade_in(data: np.ndarray, rate: int, parameters: Mapping[str, int]) -> np.nd
     return result
 
 
+def fade_out(data: np.ndarray, rate: int, parameters: Mapping[str, int]) -> np.ndarray:
+    curve = _curve(data, rate, parameters, rising=False)
+    result = data.copy()
+    result[len(result) - len(curve):] *= curve[:, np.newaxis]
+    return result
+
+
 FADE_IN = EffectSpec(
     effect_id="fade_in",
     label="Fade in",
@@ -47,3 +54,13 @@ FADE_IN = EffectSpec(
     process=fade_in,
 )
 
+FADE_OUT = EffectSpec(
+    effect_id="fade_out",
+    label="Fade out",
+    key="O",
+    family=None,
+    uses_selection=True,
+    parameters=(DURATION_PARAMETER,),
+    help_text="Reduz gradativamente o volume até o silêncio, no final do áudio ou do trecho selecionado.",
+    process=fade_out,
+)

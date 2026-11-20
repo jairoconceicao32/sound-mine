@@ -39,6 +39,26 @@ class FadeInTests(unittest.TestCase):
         np.testing.assert_array_equal(result[5 * RATE:], data[5 * RATE:])
 
 
+class FadeOutTests(unittest.TestCase):
+    def test_ends_in_silence_and_keeps_audio_before_fade(self):
+        data = frames(10)
+        result = run(fade.FADE_OUT, data, 2)
+        self.assertEqual(float(result[-1, 0]), 0.0)
+        np.testing.assert_array_equal(result[:8 * RATE], data[:8 * RATE])
+        self.assertAlmostEqual(float(result[8 * RATE, 0]), 0.5, places=6)
+
+    def test_volume_never_rises(self):
+        result = run(fade.FADE_OUT, frames(10), 4)
+        self.assertTrue(np.all(np.diff(result[6 * RATE:, 0]) < 0))
+
+    def test_ends_at_selection_end(self):
+        data = frames(10)
+        result = run(fade.FADE_OUT, data, 2, 2 * RATE, 7 * RATE)
+        self.assertEqual(float(result[7 * RATE - 1, 0]), 0.0)
+        np.testing.assert_array_equal(result[:5 * RATE], data[:5 * RATE])
+        np.testing.assert_array_equal(result[7 * RATE:], data[7 * RATE:])
+
+
 class DurationTests(unittest.TestCase):
     def test_duration_limits(self):
         parameter = fade.DURATION_PARAMETER
@@ -49,7 +69,7 @@ class DurationTests(unittest.TestCase):
         self.assertEqual(float(result[0, 0]), 0.0)
 
     def test_duration_longer_than_selection_is_refused_and_not_adjusted(self):
-        for effect in (fade.FADE_IN,):
+        for effect in (fade.FADE_IN, fade.FADE_OUT):
             data = frames(10)
             original = data.copy()
             with self.subTest(effect=effect.effect_id):
@@ -65,7 +85,7 @@ class DurationTests(unittest.TestCase):
                     run(fade.FADE_IN, frames(70), seconds)
 
     def test_audio_length_is_preserved(self):
-        for effect in (fade.FADE_IN,):
+        for effect in (fade.FADE_IN, fade.FADE_OUT):
             with self.subTest(effect=effect.effect_id):
                 self.assertEqual(run(effect, frames(10), 2).shape, (10 * RATE, 2))
 
@@ -73,10 +93,12 @@ class DurationTests(unittest.TestCase):
 class CatalogTests(unittest.TestCase):
     def test_fades_are_in_the_catalog_with_their_keys(self):
         self.assertEqual(find_effect("fade_in").key, "I")
+        self.assertEqual(find_effect("fade_out").key, "O")
         self.assertIn(fade.FADE_IN, EFFECTS)
+        self.assertIn(fade.FADE_OUT, EFFECTS)
 
     def test_fades_use_selection_and_have_no_family(self):
-        for effect in (fade.FADE_IN,):
+        for effect in (fade.FADE_IN, fade.FADE_OUT):
             with self.subTest(effect=effect.effect_id):
                 self.assertTrue(effect.uses_selection)
                 self.assertIsNone(effect.family)

@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
 from src.models.effects.contract import EffectDefinitionError, EffectSpec
-from src.models.effects.fade import FADE_IN
+from src.models.effects.fade import FADE_IN, FADE_OUT
 
 
 def check_catalog(effects: Iterable[EffectSpec]) -> tuple[EffectSpec, ...]:
@@ -22,7 +22,7 @@ def check_catalog(effects: Iterable[EffectSpec]) -> tuple[EffectSpec, ...]:
     return effects
 
 
-EFFECTS: tuple[EffectSpec, ...] = check_catalog((FADE_IN,))
+EFFECTS: tuple[EffectSpec, ...] = check_catalog((FADE_IN, FADE_OUT))
 
 
 def find_effect(effect_id: str, effects: Iterable[EffectSpec] = EFFECTS) -> EffectSpec | None:
