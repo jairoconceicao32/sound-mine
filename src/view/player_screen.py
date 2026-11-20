@@ -19,19 +19,30 @@ PLAYER_KEYS_TEXT = (
 
 
 def spoken_time(seconds: float) -> str:
-    minutes, secs = divmod(int(seconds), 60)
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, secs = divmod(remainder, 60)
+
     parts = []
-    if minutes:
-        parts.append(f"{minutes} minuto" if minutes == 1 else f"{minutes} minutos")
-    if secs or not minutes:
+
+    if hours:
+        parts.append(f"{hours} hora" if hours == 1 else f"{hours} horas")
+
+    if minutes or hours:
+        parts.append(
+            f"{minutes} minuto" if minutes == 1 else f"{minutes} minutos"
+        )
+
+    if secs or not parts:
         parts.append(f"{secs} segundo" if secs == 1 else f"{secs} segundos")
+
     return " e ".join(parts)
 
 
 def clock_time(seconds: float) -> str:
-    minutes, secs = divmod(int(seconds), 60)
-    return f"{minutes}:{secs:02d}"
-
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    
 
 class PlayerScreen(Screen):
     def __init__(self, parent: wx.Window, manager, player) -> None:
