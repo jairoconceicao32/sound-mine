@@ -80,6 +80,29 @@ class YesNoTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(ConfirmationError):
                 self.build(**{name: None})
 
+    def test_escape_cancels_by_default(self):
+        self.assertTrue(self.build().escape_cancels)
+
+    def test_confirmation_without_escape_needs_no_cancel_action(self):
+        confirmation = Confirmation(
+            title="Teste",
+            question="Deseja continuar?",
+            options=(ConfirmOption("Sim", yes), ConfirmOption("Não", no)),
+            on_cancel=None,
+            escape_cancels=False,
+        )
+        self.assertFalse(confirmation.escape_cancels)
+
+    def test_escape_flag_must_be_boolean(self):
+        with self.assertRaises(ConfirmationError):
+            Confirmation(
+                title="Teste",
+                question="Deseja continuar?",
+                options=(ConfirmOption("Sim", yes), ConfirmOption("Não", no)),
+                on_cancel=noop,
+                escape_cancels=1,
+            )
+
 
 class ConfirmationTests(unittest.TestCase):
     def test_keeps_options_in_order(self):
