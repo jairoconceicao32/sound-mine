@@ -98,7 +98,7 @@ As configurações são guardadas no arquivo `settings.dat`, na pasta do program
 |---|---|---|---|
 | Milissegundos para o eco | Caixa de edição | 10 a 2000 | 300 |
 | Percentual do eco | Controle deslizante | 0 a 100% | 75% |
-| Milissegundos para o reverbe | Caixa de edição | 10 a 2000 | 200 |
+| Milissegundos para o reverbe | Caixa de edição | 10 a 2000 | 1200 |
 | Percentual do reverbe | Controle deslizante | 0 a 100% | 80% |
 
 Os efeitos serão aplicados ao áudio quando as operações de edição forem implementadas.
