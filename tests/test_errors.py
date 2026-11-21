@@ -1,3 +1,4 @@
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -94,7 +95,7 @@ class EditorPlayer(FakePlayer):
             raise self.load_error
         return [0.0]
 
-    def save(self, path, file_format, channel, sample_rate) -> int:
+    def save(self, path, file_format, channel, sample_rate, progress=None) -> int:
         raise self.save_error
 
 
@@ -164,8 +165,12 @@ class OperationTitleTests(ScreenFlowCase):
         player.save_error = AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT)
         self.manager.settings = SaveSettings()
         with mock.patch.object(editor_menu, "choose_save_file", return_value=Path("saida.wav")):
-            saved = editor_menu.save_audio_file(self.manager, player)
-        self.assertFalse(saved)
+            results = []
+            editor_menu.save_audio_file(self.manager, player, results.append)
+            deadline = time.monotonic() + 5
+            while not results and time.monotonic() < deadline:
+                flush()
+        self.assertEqual(results, [False])
         self.assertEqual(self.errors(), [f"erro [{SAVE}]: {SAVE_FAILED_MESSAGE} {SAVE_FAILED_HINT}"])
 
     def test_failed_open_reports_open_operation(self):

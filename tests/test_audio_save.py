@@ -6,7 +6,7 @@ from unittest import mock
 import numpy as np
 
 from src.models.audio_player import load_audio
-from src.models.audio_save import PERMISSION_MESSAGE, AudioSaveError, save_audio
+from src.models.audio_save import PERMISSION_MESSAGE, AudioSaveError, SaveCanceled, save_audio
 
 RATE = 48000
 
@@ -93,3 +93,60 @@ class SaveAudioTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SaveProgressTests(unittest.TestCase):
+    def setUp(self):
+        self._folder = tempfile.TemporaryDirectory()
+        self.folder = Path(self._folder.name)
+        self.data = tone(3)
+
+    def tearDown(self):
+        self._folder.cleanup()
+
+    def test_progress_grows_until_complete_in_every_format(self):
+        for file_format in ("mp3", "m4a", "wav", "ogg"):
+            with self.subTest(file_format=file_format):
+                values = []
+                save_audio(self.data, RATE, self.folder / f"saida.{file_format}", file_format,
+                           "Estéreo", 44100, values.append)
+                self.assertGreater(len(values), 1)
+                self.assertEqual(values, sorted(values))
+                self.assertTrue(all(0 < value <= 1 for value in values))
+                self.assertEqual(values[-1], 1.0)
+
+    def test_without_progress_the_file_is_saved_normally(self):
+        path = self.folder / "saida.wav"
+        save_audio(self.data, RATE, path, "wav", "Estéreo", 44100)
+        self.assertTrue(path.is_file())
+
+    def test_progress_is_not_called_when_validation_fails(self):
+        values = []
+        with self.assertRaises(AudioSaveError):
+            save_audio(self.data, RATE, self.folder / "saida.wav", "mp3", "Estéreo", 44100, values.append)
+        self.assertEqual(values, [])
+
+    def test_cancel_keeps_existing_destination_and_removes_temporary_file(self):
+        for file_format in ("mp3", "m4a", "wav", "ogg"):
+            with self.subTest(file_format=file_format):
+                path = self.folder / f"existente.{file_format}"
+                path.write_bytes(b"original")
+
+                def cancel(value):
+                    raise SaveCanceled()
+
+                with self.assertRaises(SaveCanceled):
+                    save_audio(self.data, RATE, path, file_format, "Estéreo", 44100, cancel)
+                self.assertEqual(path.read_bytes(), b"original")
+                self.assertEqual(sorted(item.name for item in self.folder.iterdir()), [path.name])
+                path.unlink()
+
+    def test_cancel_does_not_create_a_new_file(self):
+        path = self.folder / "novo.mp3"
+
+        def cancel(value):
+            raise SaveCanceled()
+
+        with self.assertRaises(SaveCanceled):
+            save_audio(self.data, RATE, path, "mp3", "Estéreo", 44100, cancel)
+        self.assertEqual(list(self.folder.iterdir()), [])

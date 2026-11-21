@@ -33,11 +33,11 @@ class EditorExitTests(unittest.TestCase):
             schedule=lambda action: action(),
         )
 
-    def save(self) -> bool:
+    def save(self, on_done) -> None:
         self.events.append("salvar")
         if isinstance(self.save_result, Exception):
             raise self.save_result
-        return self.save_result
+        on_done(self.save_result)
 
     def show(self, confirmation) -> FakeScreen:
         screen = FakeScreen(confirmation)

@@ -14,12 +14,14 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 MAX_WAIT_SECONDS = 3.0
 SILENCE_THRESHOLD = 0.01
 CHANNELS = 2
+PITCH_STEPS = 20
 
 
 class InterfaceSounds:
     def __init__(self, folder: Path = SOUNDS_DIR, outputs=None) -> None:
         self._folder = folder
         self._sounds: dict[str, np.ndarray] = {}
+        self._pitched: dict[tuple[str, float], np.ndarray] = {}
         self._lock = threading.Lock()
         self._buffer: np.ndarray | None = None
         self._position = 0
@@ -44,10 +46,29 @@ class InterfaceSounds:
             self._load_all(device.rate)
         return device.rate
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, always: bool = False) -> None:
         sound = self._sounds.get(name)
-        if sound is None or not self.allowed(name):
+        if sound is None or not (always or self.allowed(name)):
             return
+        self._start(sound)
+
+    def play_pitched(self, name: str, factor: float) -> None:
+        sound = self._sounds.get(name)
+        if sound is None or factor <= 0:
+            return
+        factor = round(factor * PITCH_STEPS) / PITCH_STEPS
+        if factor == 1.0:
+            self._start(sound)
+            return
+        key = (name, factor)
+        pitched = self._pitched.get(key)
+        if pitched is None:
+            pitched = np.ascontiguousarray(
+                self._resample(sound, round(self._rate * factor), self._rate), dtype=np.float32)
+            self._pitched[key] = pitched
+        self._start(pitched)
+
+    def _start(self, sound: np.ndarray) -> None:
         with self._lock:
             self._buffer = sound
             self._position = 0
@@ -90,6 +111,7 @@ class InterfaceSounds:
                     sounds[name] = sound
         with self._lock:
             self._sounds = sounds
+            self._pitched = {}
             self._buffer = None
             self._position = 0
         self._rate = rate

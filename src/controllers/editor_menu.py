@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 
 import wx
@@ -11,17 +12,22 @@ from src.models.app_log import operation as log_operation
 from src.models import audio_edit
 from src.models.audio_edit import AT_CURSOR, AT_END, AT_START, EditError
 from src.models.audio_player import AudioLoadError
-from src.models.audio_save import AudioSaveError
+from src.models.audio_save import SAVE_FAILED_HINT, SAVE_FAILED_MESSAGE, AudioSaveError, SaveCanceled
 from src.models.effects.volume import original_levels
 from src.models.errors import ADD_AUDIO, ADD_BACKGROUND, REMOVE, SAVE, UNDO, user_message
+from src.models.save_task import SaveTask
 from src.view.confirm_screen import ConfirmScreen
 from src.view.editor_screen import EditorScreen
 from src.view.file_dialog import choose_audio_file, choose_save_file
 from src.view.player_screen import PlayerScreen
+from src.view.save_screen import SaveScreen
 from src.view.settings_screen import SettingsScreen
+
+logger = logging.getLogger(__name__)
 
 QUESTION = "Qual sua opção?"
 SAVED_SUFFIX = "_editado"
+SAVE_CANCELED_MESSAGE = "Salvamento cancelado. Nenhum arquivo foi alterado."
 
 
 def _editor_menu(title: str, items: list[MenuItem], intro: str | None = None) -> Menu:
@@ -162,7 +168,11 @@ def build_editor_menu(manager, player) -> Menu:
     )
 
 
-def save_audio_file(manager, player) -> bool:
+def save_audio_file(manager, player, on_done: Callable[[bool], None] | None = None) -> None:
+    def report(saved: bool) -> None:
+        if on_done is not None:
+            on_done(saved)
+
     settings = manager.settings
     file_format = settings.format
     requested_rate = int(settings.sample_rate)
@@ -172,20 +182,46 @@ def save_audio_file(manager, player) -> bool:
     name = f"{stem}.{file_format}"
     path = choose_save_file(manager.parent.GetTopLevelParent(), player.path.parent, name, file_format)
     if path is None:
-        return False
-    manager.speaker.speak("Salvando o arquivo.")
-    with log_operation(SAVE, path, with_size=False):
-        try:
-            saved_rate = player.save(path, file_format, settings.channel, requested_rate)
-        except AudioSaveError as error:
-            manager.announcer.error(user_message(error), SAVE, error)
-            return False
-    message = f"Arquivo salvo: {path.name}."
-    if saved_rate != requested_rate:
-        message += (f" A taxa de amostragem foi de {saved_rate} Hz, a maior aceita pelo formato "
-                    f"{file_format.upper()}.")
-    manager.announcer.done(message)
-    return True
+        report(False)
+        return
+
+    def work(progress: Callable[[float], None]) -> int:
+        with log_operation(SAVE, path, with_size=False):
+            try:
+                return player.save(path, file_format, settings.channel, requested_rate, progress)
+            except (AudioSaveError, SaveCanceled):
+                raise
+            except Exception:
+                logger.exception("Falha inesperada ao salvar o arquivo de áudio.")
+                raise AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT) from None
+
+    def finished(saved_rate: int | None, error: BaseException | None) -> None:
+        if not screen:
+            return
+        screen.finish(error is None)
+        manager.pop_through(screen)
+        if isinstance(error, SaveCanceled):
+            manager.speaker.speak(SAVE_CANCELED_MESSAGE)
+            report(False)
+            return
+        if error is not None:
+            if not isinstance(error, AudioSaveError):
+                error = AudioSaveError(SAVE_FAILED_MESSAGE, SAVE_FAILED_HINT)
+            with log_operation(SAVE, path, with_size=False):
+                manager.announcer.error(user_message(error), SAVE, error)
+            report(False)
+            return
+        message = f"Arquivo salvo: {path.name}."
+        if saved_rate != requested_rate:
+            message += (f" A taxa de amostragem foi de {saved_rate} Hz, a maior aceita pelo formato "
+                        f"{file_format.upper()}.")
+        manager.announcer.done(message)
+        report(True)
+
+    task = SaveTask(work, finished, wx.CallAfter)
+    screen = SaveScreen(manager.parent, manager, task, path.name)
+    manager.push(screen)
+    task.start()
 
 
 def cancel_confirmation(manager, message: str = CANCELED_MESSAGE) -> None:
@@ -204,7 +240,7 @@ def open_editor(manager, player, replace: bool = False) -> None:
 
     editor_exit = EditorExit(
         has_changes=lambda: player.has_changes,
-        save=lambda: save_audio_file(manager, player),
+        save=lambda on_done: save_audio_file(manager, player, on_done),
         show=show,
         back=lambda message: cancel_confirmation(manager, message),
         schedule=wx.CallAfter,

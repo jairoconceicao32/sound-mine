@@ -53,6 +53,9 @@ class Screen(NoFocusPanel):
     def passes_key(self, command: KeyCommand) -> bool:
         return False
 
+    def refuses_close(self) -> bool:
+        return False
+
     def focus_target(self) -> wx.Window | None:
         return None
 

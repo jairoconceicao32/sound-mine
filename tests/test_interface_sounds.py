@@ -58,5 +58,45 @@ class InterfaceSoundsEnabledTests(unittest.TestCase):
                 self.assertEqual(self.played(name), name in ("startup", "close"))
 
 
+class InterfaceSoundsPitchTests(unittest.TestCase):
+    def setUp(self):
+        self.sounds = InterfaceSounds()
+        self.sounds._rate = 48000
+        self.sounds._sounds = {name: np.ones((1000, 2), dtype=np.float32) for name in SOUND_NAMES}
+
+    def played_length(self, factor: float) -> int:
+        self.sounds.stop()
+        self.sounds.play_pitched("navigation", factor)
+        return len(self.sounds._buffer)
+
+    def test_higher_pitch_is_shorter_and_lower_pitch_is_longer(self):
+        self.assertLess(self.played_length(1.5), 1000)
+        self.assertEqual(self.played_length(1.0), 1000)
+        self.assertGreater(self.played_length(0.7), 1000)
+
+    def test_pitched_sound_plays_even_with_interface_sounds_disabled(self):
+        self.sounds.enabled = False
+        self.assertGreater(self.played_length(1.2), 0)
+
+    def test_always_plays_a_sound_even_when_disabled(self):
+        self.sounds.enabled = False
+        self.sounds.play("confirme", always=True)
+        self.assertIsNotNone(self.sounds._buffer)
+
+    def test_pitched_sounds_are_cached_in_steps(self):
+        self.sounds.play_pitched("navigation", 1.21)
+        first = self.sounds._buffer
+        self.sounds.play_pitched("navigation", 1.19)
+        self.assertIs(self.sounds._buffer, first)
+
+    def test_missing_sound_or_invalid_pitch_does_nothing(self):
+        self.sounds._sounds = {}
+        self.sounds.play_pitched("navigation", 1.2)
+        self.assertIsNone(self.sounds._buffer)
+        self.sounds._sounds = {"navigation": np.ones((10, 2), dtype=np.float32)}
+        self.sounds.play_pitched("navigation", 0)
+        self.assertIsNone(self.sounds._buffer)
+
+
 if __name__ == "__main__":
     unittest.main()

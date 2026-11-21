@@ -15,7 +15,7 @@ NOT_SAVED_MESSAGE = "O arquivo não foi salvo. O editor continua aberto."
 
 
 class EditorExit:
-    def __init__(self, has_changes: Callable[[], bool], save: Callable[[], bool],
+    def __init__(self, has_changes: Callable[[], bool], save: Callable[[Callable[[bool], None]], None],
                  show: Callable[[Confirmation], object], back: Callable[[str], None],
                  schedule: Callable[[Callable[[], None]], None]) -> None:
         self._has_changes = has_changes
@@ -57,10 +57,12 @@ class EditorExit:
 
     def _save_and_leave(self) -> None:
         try:
-            saved = self._save()
+            self._save(self._after_save)
         except Exception:
             logger.exception("Falha inesperada ao salvar antes de sair do editor.")
-            saved = False
+            self._after_save(False)
+
+    def _after_save(self, saved: bool) -> None:
         if saved:
             self._finish()
         else:

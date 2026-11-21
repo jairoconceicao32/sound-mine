@@ -30,8 +30,12 @@ class FakeSounds:
     def __init__(self, log: list[str]) -> None:
         self._log = log
 
-    def play(self, name: str) -> None:
-        pass
+    def play(self, name: str, always: bool = False) -> None:
+        if always:
+            self._log.append(f"som sempre: {name}")
+
+    def play_pitched(self, name: str, factor: float) -> None:
+        self._log.append(f"beep: {name} {factor:.2f}")
 
     def play_and_wait(self, name: str) -> None:
         self._log.append(f"som: {name}")
@@ -144,9 +148,14 @@ class ScreenFlowCase(unittest.TestCase):
 class ExitFlowTests(ScreenFlowCase):
     def setUp(self) -> None:
         super().setUp()
-        self.save = mock.patch.object(editor_menu, "save_audio_file", return_value=True)
+        self.save_result = True
+        self.save = mock.patch.object(editor_menu, "save_audio_file", side_effect=self.fake_save)
         self.save_mock = self.save.start()
         self.addCleanup(self.save.stop)
+
+    def fake_save(self, manager, player, on_done=None) -> None:
+        if on_done is not None:
+            on_done(self.save_result)
 
     def test_esc_without_changes_returns_to_main_menu(self):
         player = self.open(changes=False)
@@ -236,7 +245,7 @@ class ExitFlowTests(ScreenFlowCase):
     def test_failed_save_keeps_editor_open(self):
         for close in ("esc", "alt+f4"):
             with self.subTest(close=close):
-                self.save_mock.return_value = False
+                self.save_result = False
                 player = self.open()
                 editor = self.manager.current
                 self.press(wx.WXK_ESCAPE) if close == "esc" else self.alt_f4()

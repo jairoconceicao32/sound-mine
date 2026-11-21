@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +29,10 @@ class AudioSaveError(SoundMineError):
     pass
 
 
+class SaveCanceled(Exception):
+    pass
+
+
 def output_rate(file_format: str, requested_rate: int) -> int:
     return min(requested_rate, MAX_RATES.get(file_format, requested_rate))
 
@@ -50,8 +55,11 @@ def convert(data: np.ndarray, rate: int, target_rate: int, mono: bool) -> np.nda
     return np.clip(np.concatenate(blocks), -1.0, 1.0)
 
 
+Progress = Callable[[float], None] | None
+
+
 def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
-               channel: str, sample_rate: int) -> int:
+               channel: str, sample_rate: int, progress: Progress = None) -> int:
     if file_format not in SAVE_FORMATS:
         raise AudioSaveError("O formato de gravação configurado não é válido.",
                              "Escolha um formato em Configurações, guia Geral.")
@@ -81,11 +89,11 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
     try:
         samples = convert(data, rate, target_rate, mono)
         if file_format in CODECS:
-            _encode(samples, target_rate, temporary, file_format, mono)
+            _encode(samples, target_rate, temporary, file_format, mono, progress)
         else:
-            _write_soundfile(samples, target_rate, temporary, file_format)
+            _write_soundfile(samples, target_rate, temporary, file_format, progress)
         os.replace(temporary, path)
-    except AudioSaveError:
+    except (AudioSaveError, SaveCanceled):
         temporary.unlink(missing_ok=True)
         raise
     except PermissionError:
@@ -98,30 +106,41 @@ def save_audio(data: np.ndarray, rate: int, path: Path, file_format: str,
     return target_rate
 
 
-def _encode(samples: np.ndarray, rate: int, path: Path, file_format: str, mono: bool) -> None:
+def _encode(samples: np.ndarray, rate: int, path: Path, file_format: str, mono: bool,
+            progress: Progress = None) -> None:
     import av
     container_format, codec, frame_size = CODECS[file_format]
     layout = "mono" if mono else "stereo"
     planar = np.ascontiguousarray(samples.T)
+    total = planar.shape[1]
     with av.open(str(path), mode="w", format=container_format) as container:
         stream = container.add_stream(codec, rate=rate, layout=layout)
         stream.bit_rate = BIT_RATE
-        for start in range(0, planar.shape[1], frame_size):
+        for start in range(0, total, frame_size):
             chunk = np.ascontiguousarray(planar[:, start:start + frame_size])
             frame = av.AudioFrame.from_ndarray(chunk, format="fltp", layout=layout)
             frame.sample_rate = rate
             frame.pts = start
             for packet in stream.encode(frame):
                 container.mux(packet)
+            _report(progress, start + frame_size, total)
         for packet in stream.encode(None):
             container.mux(packet)
 
 
-def _write_soundfile(samples: np.ndarray, rate: int, path: Path, file_format: str) -> None:
+def _write_soundfile(samples: np.ndarray, rate: int, path: Path, file_format: str,
+                     progress: Progress = None) -> None:
     import soundfile
     options = {"format": "WAV", "subtype": "PCM_16"}
     if file_format == "ogg":
         options = {"format": "OGG", "subtype": "VORBIS"}
+    step = rate * BLOCK_SECONDS
     with soundfile.SoundFile(str(path), "w", rate, samples.shape[1], **options) as file:
-        for start in range(0, len(samples), rate * BLOCK_SECONDS):
-            file.write(samples[start:start + rate * BLOCK_SECONDS])
+        for start in range(0, len(samples), step):
+            file.write(samples[start:start + step])
+            _report(progress, start + step, len(samples))
+
+
+def _report(progress: Progress, done: int, total: int) -> None:
+    if progress is not None:
+        progress(min(done, total) / total)

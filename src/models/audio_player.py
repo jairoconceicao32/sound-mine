@@ -8,7 +8,7 @@ import numpy as np
 
 from src.models.audio_edit import INTERNAL_ERROR, EditError
 from src.models.audio_output import OutputStatus
-from src.models.audio_save import save_audio
+from src.models.audio_save import Progress, save_audio
 from src.models.effects.volume import original_levels
 from src.models.errors import MEMORY_HINT, SoundMineError
 
@@ -323,12 +323,13 @@ class AudioPlayer:
         data, _ = load_audio(path, self._memory_mb, self._rate)
         return data
 
-    def save(self, path: Path, file_format: str, channel: str, sample_rate: int) -> int:
+    def save(self, path: Path, file_format: str, channel: str, sample_rate: int,
+             progress: Progress = None) -> int:
         with self._lock:
             self._playing = False
             data, rate, levels = self._data, self._rate, self._levels
             effects, last_family = self._effects, self._last_family
-        saved_rate = save_audio(data, rate, path, file_format, channel, sample_rate)
+        saved_rate = save_audio(data, rate, path, file_format, channel, sample_rate, progress)
         with self._lock:
             self._saved = data
             self._saved_levels = levels

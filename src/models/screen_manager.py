@@ -164,12 +164,24 @@ class ScreenManager:
         (target or self._focus_sink).SetFocus()
 
     def _guard_vetoes(self, event: wx.CloseEvent) -> bool:
-        if self._closing or self._close_guard is None or not event.CanVeto():
+        if not event.CanVeto():
+            return False
+        if self.current is not None and self._screen_refuses_close(self.current):
+            return True
+        if self._closing or self._close_guard is None:
             return False
         try:
             return bool(self._close_guard(self.close_now))
         except Exception:
             logger.exception("Falha ao verificar o fechamento do programa.")
+            return False
+
+    @staticmethod
+    def _screen_refuses_close(screen: Screen) -> bool:
+        try:
+            return bool(screen.refuses_close())
+        except Exception:
+            logger.exception("Falha ao verificar se a tela permite fechar o programa.")
             return False
 
     def _on_output_timer(self, event: wx.TimerEvent) -> None:
